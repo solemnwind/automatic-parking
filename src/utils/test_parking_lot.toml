@@ -1,0 +1,23 @@
+# A test map for car parking
+
+name = "Parking Lot"
+
+[bounds]
+west = 0.0
+east = 6.0
+south = 0.0
+north = 10.0
+
+[objects]
+obstacles = [
+    { west = 0.0, east = 1.4, south = 0.0, north = 4.0 },
+    { west = 0.0, east = 1.4, south = 6.5, north = 10.0}
+]
+# constraints of the target parking slot
+#   - length: the length of the slot
+#   - width: the width of the slot
+#   - pos: the coordinates of the leftbottom corner
+#   - orientation: the orientation of the slot, the car must align with it
+slot = { length = 2.5, width = 1.4, position = [0.0, 4.0], orientation = 90}
+# The test car
+car = { dimensions = false, position = [3.0, 2.0], orientation = 45, max_speed = 2.0, max_accel = 2.0, max_steering_angle = 35.0 }
