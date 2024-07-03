@@ -20,6 +20,7 @@ class Environment:
         self.obstacles = None
         self.slot = None
         self.car = None
+        self.name = None
         self.read_scene_config(toml_file)
 
     def read_scene_config(self, toml_file):
@@ -28,6 +29,7 @@ class Environment:
 
         bounds = scene['bounds']
         objects = scene['objects']
+        self.name = scene['name']
 
         # Read bounds
         self.west = bounds['west']
@@ -53,6 +55,7 @@ class Environment:
 
     def draw(self):
         fig, ax = plt.subplots()
+        ax.title.set_text(self.name)
         ax.set_xlim(self.west, self.east)
         ax.set_ylim(self.south, self.north)
 
