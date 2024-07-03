@@ -4,6 +4,8 @@ from numpy import sin, cos, arcsin, arctan2, pi, sqrt, inf, abs
 from enum import Enum
 
 EPS = 1e-10
+RAD = 180 / pi
+DEG = pi / 180
 
 
 # util functions and data structures
@@ -60,6 +62,7 @@ class ReedsSheppPath:
         self.v = v
         self.w = w
         self.x = x
+        self.lengths = [t, u, v, w, x]
 
 
 def LpSpLp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
@@ -91,7 +94,7 @@ def LpRnL(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
         t = mod2pi(theta - u / 2 + pi)
         v = mod2pi(phi - u - t)
         if t >= -EPS and u >= -EPS:
-            return True, t, u, v
+            return True, t, -u, v
     return False, 0, 0, 0
 
 
@@ -210,7 +213,6 @@ def CCCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]
     return path, l_min
 
 
-
 def CCSC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
     t: float
     u: float
@@ -235,11 +237,65 @@ def CCSCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float
 
 
 if __name__ == "__main__":
-    # path, l = CSC(2, 3, 0)
-    # print(path.type)
-    # print(path.t / pi * 180, path.u, path.v / pi * 180)
-    # print(l)
-    rs = ReedsShepp(-1, 1, pi/2)
-    print(rs.path.type)
-    print(rs.path.t, rs.path.u, rs.path.v)
-    print(rs.length)
+    import argparse
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Arc
+
+    parser = argparse.ArgumentParser(
+        prog='reeds_shepp.py',
+        description='Computes the optimal Reeds-Shepp path from (0, 0, 0) to (x, y, phi)'
+    )
+    parser.add_argument('x', type=float, help='x coordinate')
+    parser.add_argument('y', type=float, help='y coordinate')
+    parser.add_argument('phi', type=float, help='orientation phi (degree)')
+    args = parser.parse_args()
+
+    p = [args.x, args.y, args.phi * DEG]
+    rs = ReedsShepp(p[0], p[1], p[2])
+
+    pos = [0, 0, 0]
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_aspect('equal')
+    # plt.grid()
+
+    # Plot the path
+    for i in range(len(rs.path.type)):
+        action = rs.path.type[i]
+        amount = rs.path.lengths[i]
+        # Show the path in blue if goes forward,
+        # in red if goes backward.
+        linecolor = 'b' if amount >= 0 else 'r'
+
+        match action:
+            case RSWord.S:
+                pos_next = [pos[0] + amount * cos(pos[2]), pos[1] + amount * sin(pos[2]), pos[2]]
+                ax.plot([pos[0], pos_next[0]], [pos[1], pos_next[1]], linecolor, linewidth=2)
+                pos = pos_next
+            case RSWord.L:
+                centric = (pos[0] - sin(pos[2]), pos[1] + cos(pos[2]))
+                phi_next = mod2pi(pos[2] + amount)
+                pos_next = [centric[0] + sin(phi_next), centric[1] - cos(phi_next), phi_next]
+                theta1 = pos[2] * RAD if amount >= 0 else phi_next * RAD
+                theta2 = phi_next * RAD if amount >= 0 else pos[2] * RAD
+                ax.add_patch(Arc(centric, 2, 2, angle=-90,
+                                 theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
+                pos = pos_next
+            case RSWord.R:
+                centric = (pos[0] + sin(pos[2]), pos[1] - cos(pos[2]))
+                phi_next = mod2pi(pos[2] - amount)
+                pos_next = [centric[0] - sin(phi_next), centric[1] + cos(phi_next), phi_next]
+                theta1 = pos[2] * RAD if amount < 0 else phi_next * RAD
+                theta2 = phi_next * RAD if amount < 0 else pos[2] * RAD
+                ax.add_patch(Arc(centric, 2, 2, angle=90,
+                                 theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
+                pos = pos_next
+
+    # Plot the start and end
+    plt.scatter(0, 0, marker='.', color='gold', s=12)
+    plt.scatter(p[0], p[1], marker='*', color='g', s=12)
+    plt.quiver([0, p[0]], [0, p[1]], [1, cos(p[2])], [0, sin(p[2])],
+               color=['gold', 'g'])
+
+    ax.autoscale_view()
+    plt.show()
