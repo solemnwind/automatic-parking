@@ -1,12 +1,12 @@
-# import numpy as np
-import numpy as np
-from numpy import sin, cos, arcsin, arctan2, pi, sqrt, inf, abs
+from numpy import sin, cos, arcsin, arccos, arctan2, pi, sqrt, inf, abs
 from enum import Enum
+import matplotlib.pyplot as plt
+from matplotlib.patches import Arc
 
 EPS = 1e-10
 RAD = 180 / pi
 DEG = pi / 180
-
+pi_2 = pi / 2
 
 # util functions and data structures
 def polar(x: float, y: float) -> tuple[float, float]:
@@ -24,6 +24,7 @@ def mod2pi(theta: float) -> float:
     return phi
 
 
+# Reeds-Shepp "words": L, S, R
 class RSWord(Enum):
     S = 0  # Straight
     L = 1  # Left
@@ -31,17 +32,30 @@ class RSWord(Enum):
 
 
 rs_types = {
-    "RSR": [RSWord.R, RSWord.S, RSWord.R],
-    "LSL": [RSWord.L, RSWord.S, RSWord.L],
-    "LSR": [RSWord.L, RSWord.S, RSWord.R],
-    "RSL": [RSWord.R, RSWord.S, RSWord.L],
-    "RLR": [RSWord.R, RSWord.L, RSWord.R],
-    "LRL": [RSWord.L, RSWord.R, RSWord.L],
+    "RSR":   [RSWord.R, RSWord.S, RSWord.R],
+    "LSL":   [RSWord.L, RSWord.S, RSWord.L],
+    "LSR":   [RSWord.L, RSWord.S, RSWord.R],
+    "RSL":   [RSWord.R, RSWord.S, RSWord.L],
+    "RLR":   [RSWord.R, RSWord.L, RSWord.R],
+    "LRL":   [RSWord.L, RSWord.R, RSWord.L],
+    "LRLR":  [RSWord.L, RSWord.R, RSWord.L, RSWord.R],
+    "RLRL":  [RSWord.R, RSWord.L, RSWord.R, RSWord.L],
+    "LRSL":  [RSWord.L, RSWord.R, RSWord.S, RSWord.L],
+    "RLSR":  [RSWord.R, RSWord.L, RSWord.S, RSWord.R],
+    "LRSR":  [RSWord.L, RSWord.R, RSWord.S, RSWord.R],
+    "RLSL":  [RSWord.R, RSWord.L, RSWord.S, RSWord.L],
+    "LSRL":  [RSWord.L, RSWord.S, RSWord.R, RSWord.L],
+    "RSLR":  [RSWord.R, RSWord.S, RSWord.L, RSWord.R],
+    "RSRL":  [RSWord.R, RSWord.S, RSWord.R, RSWord.L],
+    "LSLR":  [RSWord.L, RSWord.S, RSWord.L, RSWord.R],
+    "LRSLR": [RSWord.L, RSWord.R, RSWord.S, RSWord.L, RSWord.R],
+    "RLSRL": [RSWord.R, RSWord.L, RSWord.S, RSWord.R, RSWord.L]
 }
 
 
 class ReedsShepp:
     def __init__(self, x: float, y: float, phi: float):
+        self.start = [x, y, phi]
         forms = [CSC, CCC, CCCC, CCSC, CCSCC]
         self.path: ReedsSheppPath or None = None
         l_min: float = inf
@@ -53,9 +67,57 @@ class ReedsShepp:
 
         self.length: float = l_min
 
+    def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
+        if fig is None or ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        ax.set_aspect('equal')
+
+        pos = [0, 0, 0]  # start from (x, y, phi) = (0, 0, 0)
+        # Plot the path
+        for i in range(len(self.path.type)):
+            action = self.path.type[i]
+            amount = self.path.lengths[i]
+            linecolor = 'b' if amount >= 0 else 'r'  # Show positive path in blue and negative path in red
+
+            match action:
+                case RSWord.S:
+                    pos_next = [pos[0] + amount * cos(pos[2]), pos[1] + amount * sin(pos[2]), pos[2]]
+                    ax.plot([pos[0], pos_next[0]], [pos[1], pos_next[1]], linecolor, linewidth=2)
+                    pos = pos_next
+                case RSWord.L:
+                    center = (pos[0] - sin(pos[2]), pos[1] + cos(pos[2]))
+                    phi_next = mod2pi(pos[2] + amount)
+                    pos_next = [center[0] + sin(phi_next), center[1] - cos(phi_next), phi_next]
+                    theta1 = pos[2] * RAD if amount >= 0 else phi_next * RAD
+                    theta2 = phi_next * RAD if amount >= 0 else pos[2] * RAD
+                    ax.add_patch(Arc(center, 2, 2, angle=-90,
+                                     theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
+                    pos = pos_next
+                case RSWord.R:
+                    center = (pos[0] + sin(pos[2]), pos[1] - cos(pos[2]))
+                    phi_next = mod2pi(pos[2] - amount)
+                    pos_next = [center[0] - sin(phi_next), center[1] + cos(phi_next), phi_next]
+                    theta1 = pos[2] * RAD if amount < 0 else phi_next * RAD
+                    theta2 = phi_next * RAD if amount < 0 else pos[2] * RAD
+                    ax.add_patch(Arc(center, 2, 2, angle=90,
+                                     theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
+                    pos = pos_next
+
+        # Plot the start and end poses
+        plt.scatter(0, 0, marker='.', color='gold', s=12)
+        plt.scatter(self.start[0], self.start[1], marker='*', color='g', s=12)
+        plt.quiver([0, self.start[0]], [0, self.start[1]],
+                   [1, cos(self.start[2])], [0, sin(self.start[2])], color=['gold', 'g'])
+
+        ax.autoscale_view()
+
+        return fig, ax
+
 
 class ReedsSheppPath:
-    def __init__(self, path_type: list[RSWord], t: float, u: float, v: float, w: float = None, x: float = None):
+    def __init__(self, path_type: list[RSWord],
+                 t: float, u: float, v: float, w: float = None, x: float = None):
         self.type = path_type
         self.t = t
         self.u = u
@@ -63,6 +125,7 @@ class ReedsSheppPath:
         self.w = w
         self.x = x
         self.lengths = [t, u, v, w, x]
+        assert len(self.type) == len([l for l in self.lengths if l is not None])
 
 
 def LpSpLp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
@@ -85,24 +148,7 @@ def LpSpRp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
     return False, 0, 0, 0
 
 
-def LpRnL(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
-    xi = x - sin(phi)
-    eta = y - 1 + cos(phi)
-    u1, theta = polar(xi, eta)
-    if u1 <= 4:
-        u = 2 * arcsin(u1 / 4)
-        t = mod2pi(theta - u / 2 + pi)
-        v = mod2pi(phi - u - t)
-        if t >= -EPS and u >= -EPS:
-            return True, t, -u, v
-    return False, 0, 0, 0
-
-
 def CSC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
-    t: float
-    u: float
-    v: float
-    l_tot: float
     l_min: float = inf
     path: ReedsSheppPath or None = None
     # L+S+L+
@@ -164,82 +210,368 @@ def CSC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
     return path, l_min
 
 
+def LpRnL(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
+    xi = x - sin(phi)
+    eta = y - 1 + cos(phi)
+    u1, theta = polar(xi, eta)
+    if u1 <= 4:
+        u = 2 * arcsin(u1 / 4)
+        t = mod2pi(theta - u / 2 + pi)
+        v = mod2pi(phi - u - t)
+        if t >= -EPS and u >= -EPS:
+            return True, t, -u, v
+    return False, 0, 0, 0
+
+
 def CCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
-    t: float
-    u: float
-    v: float
-    l_tot: float
     l_min: float = inf
     path: ReedsSheppPath or None = None
-    # L+R-L+
+    """ C|C|C and C|CC """
+    # L+R-L
     is_path, t, u, v = LpRnL(x, y, phi)
     l_tot = abs(t) + abs(u) + abs(v)
     if is_path and l_tot < l_min:
         l_min = l_tot
         path = ReedsSheppPath(rs_types["LRL"], t, u, v)
 
-    # L-R+L-
+    # L-R+L
     is_path, t, u, v = LpRnL(-x, y, -phi)
     l_tot = abs(t) + abs(u) + abs(v)
     if is_path and l_tot < l_min:
         l_min = l_tot
         path = ReedsSheppPath(rs_types["LRL"], -t, -u, -v)
 
-    # R+L-R+
+    # R+L-R
     is_path, t, u, v = LpRnL(x, -y, -phi)
     l_tot = abs(t) + abs(u) + abs(v)
     if is_path and l_tot < l_min:
         l_min = l_tot
         path = ReedsSheppPath(rs_types["RLR"], t, u, v)
 
-    # R-L+R-
+    # R-L+R
     is_path, t, u, v = LpRnL(-x, -y, phi)
     l_tot = abs(t) + abs(u) + abs(v)
     if is_path and l_tot < l_min:
         l_min = l_tot
         path = ReedsSheppPath(rs_types["RLR"], -t, -u, -v)
 
+    """ CC|C """
+    # Reverse of C|CC
+    xb = x * cos(phi) + y * sin(phi)
+    yb = x * sin(phi) - y * cos(phi)
+    # L-R-L+
+    is_path, t, u, v = LpRnL(xb, yb, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRL"], v, u, t)
+
+    # L+R+L-
+    is_path, t, u, v = LpRnL(-xb, yb, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRL"], -v, -u, -t)
+
+    # R-L-R+
+    is_path, t, u, v = LpRnL(xb, -yb, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLR"], v, u, t)
+
+    # R+L+R-
+    is_path, t, u, v = LpRnL(-xb, -yb, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLR"], -v, -u, -t)
+
     return path, l_min
+
+
+def tw(u, u1, xi, eta, phi) -> tuple[float, float]:
+    delta = mod2pi(u - u1)
+    A = sin(u) - sin(delta)
+    B = cos(u) - cos(delta) - 1
+    _, t1 = polar(xi * A + eta * B, eta * A - xi * B)
+    t2 = 2 * cos(delta) - 2 * cos(u1) - 2 * cos(u) + 3
+    tau = mod2pi(t1 + pi) if t2 < 0 else mod2pi(t1)
+    omega = mod2pi(tau - u + u1 - phi)
+    return tau, omega
+
+
+# (8.7)
+def LpRpuLnuRn(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
+    xi = x + sin(phi)
+    eta = y - 1 - cos(phi)
+    rho = (2 + sqrt(xi**2 + eta**2)) / 4
+    if rho <= 1:
+        u = arccos(rho)
+        t, v = tw(u, -u, xi, eta, phi)
+        if t >= -EPS and v <= EPS:
+            return True, t, u, v
+    return False, 0, 0, 0
+
+
+# (8.8)
+def LpRnuLnuRp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
+    xi = x + sin(phi)
+    eta = y - 1 - cos(phi)
+    rho = (20 - xi**2 - eta**2) / 16
+    if 0 <= rho <= 1:
+        u = -arccos(rho)
+        t, v = tw(u, u, xi, eta, phi)
+        if t >= -EPS and v >= -EPS:
+            return True, t, u, v
+    return False, 0, 0, 0
 
 
 def CCCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
-    t: float
-    u: float
-    v: float
-    w: float
-    l_tot: float
     l_min: float = inf
     path: ReedsSheppPath or None = None
+    """ CCu|CuC """
+    # L+R+L-R-
+    is_path, t, u, v = LpRpuLnuRn(x, y, phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRLR"], t, u, -u, v)
+    # L-R-L+R+
+    is_path, t, u, v = LpRpuLnuRn(-x, y, -phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRLR"], -t, -u, u, -v)
+    # R+L+R-L-
+    is_path, t, u, v = LpRpuLnuRn(x, -y, -phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLRL"], t, u, -u, v)
+    # R-L-R+L+
+    is_path, t, u, v = LpRpuLnuRn(-x, -y, phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLRL"], -t, -u, u, -v)
+
+    """ C|CuCu|C """
+    # L+R-L-R+
+    is_path, t, u, v = LpRnuLnuRp(x, y, phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRLR"], t, u, u, v)
+    # L-R+L+R-
+    is_path, t, u, v = LpRnuLnuRp(-x, y, -phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRLR"], -t, -u, -u, -v)
+    # R+L-R-L+
+    is_path, t, u, v = LpRnuLnuRp(x, -y, -phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLRL"], t, u, u, v)
+    # R-L+R+L-
+    is_path, t, u, v = LpRnuLnuRp(-x, -y, phi)
+    l_tot = abs(t) + 2 * abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLRL"], -t, -u, -u, -v)
+
     return path, l_min
+
+
+# (8.9)
+def LpRnSnLn(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
+    xi = x + sin(phi)
+    eta = y - 1 - cos(phi)
+    rho, theta = polar(-eta, xi)
+    if rho >= 2:
+        _, theta1 = polar(sqrt(rho**2 - 4), 2)
+        t = mod2pi(theta - theta1)
+        u = 2 - theta1
+        v = mod2pi(phi - pi_2 - t)
+        if t >= -EPS and u <= EPS and v <= EPS:
+            return True, t, u, v
+    return False, 0, 0, 0
+
+
+# (8.10)
+def LpRnSnRn(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
+    xi = x + sin(phi)
+    eta = y - 1 - cos(phi)
+    rho, theta = polar(-eta, xi)
+    if rho >= 2:
+        t = theta
+        u = 2 - rho
+        v = mod2pi(t + pi_2 - phi)
+        if t >= -EPS and u <= EPS and v <= EPS:
+            return True, t, u, v
+    return False, 0, 0, 0
 
 
 def CCSC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
-    t: float
-    u: float
-    v: float
-    w: float
-    l_tot: float
     l_min: float = inf
     path: ReedsSheppPath or None = None
-    return path, l_min
+    """ C|C_{pi/2}SC """
+    # LpRnSnLn
+    is_path, t, u, v = LpRnSnLn(x, y, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRSL"], t, -pi_2, u, v)
+    # LnRpSpLp
+    is_path, t, u, v = LpRnSnLn(-x, y, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRSL"], -t, pi_2, -u, -v)
+    # RpLnSnRn
+    is_path, t, u, v = LpRnSnLn(x, -y, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLSR"], t, -pi_2, u, v)
+    # RnLpSpRp
+    is_path, t, u, v = LpRnSnLn(-x, -y, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLSR"], -t, pi_2, -u, -v)
+
+    # LpRnSnRn
+    is_path, t, u, v = LpRnSnRn(x, y, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRSR"], t, -pi_2, u, v)
+    # LnRpSpRp
+    is_path, t, u, v = LpRnSnRn(-x, y, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRSR"], -t, pi_2, -u, -v)
+    # RpLnSnLn
+    is_path, t, u, v = LpRnSnRn(x, -y, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLSL"], t, -pi_2, u, v)
+    # RnLpSpLp
+    is_path, t, u, v = LpRnSnRn(-x, -y, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLSL"], -t, pi_2, -u, -v)
+
+    """ CS|C_{pi/2}C """
+    xb = x * cos(phi) + y * sin(phi)
+    yb = x * sin(phi) - y * cos(phi)
+    # LnSnRnLp
+    is_path, t, u, v = LpRnSnLn(xb, yb, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LSRL"], v, u, -pi_2, t)
+    # LpSpRpLn
+    is_path, t, u, v = LpRnSnLn(-xb, yb, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LSRL"], -v, -u, pi_2, -t)
+    # RnSnLnRp
+    is_path, t, u, v = LpRnSnLn(xb, -yb, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RSLR"], v, u, -pi_2, t)
+    # RpSpLpRn
+    is_path, t, u, v = LpRnSnLn(-xb, -yb, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RSLR"], -v, -u, pi_2, -t)
+
+    # RnSnRnLp
+    is_path, t, u, v = LpRnSnRn(xb, yb, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RSRL"], v, u, -pi_2, t)
+    # RpSpRpLn
+    is_path, t, u, v = LpRnSnRn(-xb, yb, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RSRL"], -v, -u, pi_2, -t)
+    # LnSnLnRp
+    is_path, t, u, v = LpRnSnRn(xb, -yb, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LSLR"], v, u, -pi_2, t)
+    # LpSpLpRn
+    is_path, t, u, v = LpRnSnRn(-xb, -yb, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LSLR"], -v, -u, pi_2, -t)
+
+    return path, l_min + pi_2
+
+
+# (8.11)
+def LpRnSnLnRp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
+    xi = x + sin(phi)
+    eta = y - 1 - cos(phi)
+    rho, theta = polar(eta, xi)
+    if rho >= 2:
+        t = mod2pi(theta - arccos(-2 / rho))
+        if t > 0:
+            u = 4 - (xi + 2 * cos(t)) / sin(t)
+            v = mod2pi(t - phi)
+            if t >= -EPS and u <= EPS and v >= -EPS:
+                return True, t, u, v
+    return False, 0, 0, 0
 
 
 def CCSCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]:
-    t: float
-    u: float
-    v: float
-    w: float
-    x: float
-    l_tot: float
     l_min: float = inf
     path: ReedsSheppPath or None = None
-    return path, l_min
+    # L+R-S-L-R+
+    is_path, t, u, v = LpRnSnLnRp(x, y, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRSLR"], t, -pi_2, u, -pi_2, v)
+    # L-R+S+L+R-
+    is_path, t, u, v = LpRnSnLnRp(-x, y, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["LRSLR"], -t, pi_2, -u, pi_2, -v)
+    # R+L-S-R-L+
+    is_path, t, u, v = LpRnSnLnRp(x, -y, -phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLSRL"], t, -pi_2, u, -pi_2, v)
+    # R-L+S+R+L-
+    is_path, t, u, v = LpRnSnLnRp(-x, -y, phi)
+    l_tot = abs(t) + abs(u) + abs(v)
+    if is_path and l_tot < l_min:
+        l_min = l_tot
+        path = ReedsSheppPath(rs_types["RLSRL"], -t, pi_2, -u, pi_2, -v)
+
+    return path, l_min + pi
 
 
 if __name__ == "__main__":
     import argparse
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Arc
 
     parser = argparse.ArgumentParser(
         prog='reeds_shepp.py',
@@ -250,52 +582,6 @@ if __name__ == "__main__":
     parser.add_argument('phi', type=float, help='orientation phi (degree)')
     args = parser.parse_args()
 
-    p = [args.x, args.y, args.phi * DEG]
-    rs = ReedsShepp(p[0], p[1], p[2])
-
-    pos = [0, 0, 0]
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_aspect('equal')
-    # plt.grid()
-
-    # Plot the path
-    for i in range(len(rs.path.type)):
-        action = rs.path.type[i]
-        amount = rs.path.lengths[i]
-        # Show the path in blue if goes forward,
-        # in red if goes backward.
-        linecolor = 'b' if amount >= 0 else 'r'
-
-        match action:
-            case RSWord.S:
-                pos_next = [pos[0] + amount * cos(pos[2]), pos[1] + amount * sin(pos[2]), pos[2]]
-                ax.plot([pos[0], pos_next[0]], [pos[1], pos_next[1]], linecolor, linewidth=2)
-                pos = pos_next
-            case RSWord.L:
-                centric = (pos[0] - sin(pos[2]), pos[1] + cos(pos[2]))
-                phi_next = mod2pi(pos[2] + amount)
-                pos_next = [centric[0] + sin(phi_next), centric[1] - cos(phi_next), phi_next]
-                theta1 = pos[2] * RAD if amount >= 0 else phi_next * RAD
-                theta2 = phi_next * RAD if amount >= 0 else pos[2] * RAD
-                ax.add_patch(Arc(centric, 2, 2, angle=-90,
-                                 theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
-                pos = pos_next
-            case RSWord.R:
-                centric = (pos[0] + sin(pos[2]), pos[1] - cos(pos[2]))
-                phi_next = mod2pi(pos[2] - amount)
-                pos_next = [centric[0] - sin(phi_next), centric[1] + cos(phi_next), phi_next]
-                theta1 = pos[2] * RAD if amount < 0 else phi_next * RAD
-                theta2 = phi_next * RAD if amount < 0 else pos[2] * RAD
-                ax.add_patch(Arc(centric, 2, 2, angle=90,
-                                 theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
-                pos = pos_next
-
-    # Plot the start and end
-    plt.scatter(0, 0, marker='.', color='gold', s=12)
-    plt.scatter(p[0], p[1], marker='*', color='g', s=12)
-    plt.quiver([0, p[0]], [0, p[1]], [1, cos(p[2])], [0, sin(p[2])],
-               color=['gold', 'g'])
-
-    ax.autoscale_view()
+    rs = ReedsShepp(args.x, args.y, args.phi * DEG)
+    rs.draw()
     plt.show()
