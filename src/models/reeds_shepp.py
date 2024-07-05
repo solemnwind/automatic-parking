@@ -7,6 +7,7 @@ EPS = 1e-10
 RAD = 180 / pi
 DEG = pi / 180
 pi_2 = pi / 2
+Pose_t = tuple[float, float, float]
 
 # util functions and data structures
 def polar(x: float, y: float) -> tuple[float, float]:
@@ -22,6 +23,16 @@ def mod2pi(theta: float) -> float:
     elif phi < -pi:
         phi += 2 * pi
     return phi
+
+
+def transform2origin(start: Pose_t, end: Pose_t) -> Pose_t:
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    theta = -start[2]
+    x = dx * cos(theta) - dy * sin(theta)
+    y = dx * sin(theta) + dy * cos(theta)
+    phi = mod2pi(end[2] - start[2])
+    return x, y, phi
 
 
 # Reeds-Shepp "words": L, S, R
@@ -54,8 +65,10 @@ rs_types = {
 
 
 class ReedsShepp:
-    def __init__(self, x: float, y: float, phi: float):
-        self.start = [x, y, phi]
+    def __init__(self, start: Pose_t = (0, 0, 0), end: Pose_t = (1, 0, 0)):
+        self.start = start
+        self.end = end
+        x, y, phi = transform2origin(start, end)
         forms = [CSC, CCC, CCCC, CCSC, CCSCC]
         self.path: ReedsSheppPath or None = None
         l_min: float = inf
@@ -73,7 +86,7 @@ class ReedsShepp:
             ax = fig.add_subplot(111)
         ax.set_aspect('equal')
 
-        pos = [0, 0, 0]  # start from (x, y, phi) = (0, 0, 0)
+        pos = self.start
         # Plot the path
         for i in range(len(self.path.type)):
             action = self.path.type[i]
@@ -105,10 +118,11 @@ class ReedsShepp:
                     pos = pos_next
 
         # Plot the start and end poses
-        plt.scatter(0, 0, marker='.', color='gold', s=12)
-        plt.scatter(self.start[0], self.start[1], marker='*', color='g', s=12)
-        plt.quiver([0, self.start[0]], [0, self.start[1]],
-                   [1, cos(self.start[2])], [0, sin(self.start[2])], color=['gold', 'g'])
+        plt.scatter(self.start[0], self.start[1], marker='.', color='gold', s=12)
+        plt.scatter(self.end[0], self.end[1], marker='*', color='g', s=12)
+        plt.quiver([self.start[0], self.end[0]], [self.start[1], self.end[1]],
+                   [cos(self.start[2]), cos(self.end[2])], [sin(self.start[2]), sin(self.end[2])],
+                   color=['gold', 'g'])
 
         ax.autoscale_view()
 
@@ -575,13 +589,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         prog='reeds_shepp.py',
-        description='Computes the optimal Reeds-Shepp path from (0, 0, 0) to (x, y, phi)'
+        description='Computes the optimal Reeds-Shepp path from (0, 0, 0) to (x, y, phi)',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument('x', type=float, help='x coordinate')
-    parser.add_argument('y', type=float, help='y coordinate')
-    parser.add_argument('phi', type=float, help='orientation phi (degree)')
+    parser.add_argument('-s', '--start', nargs=3, type=float,
+                        help='specify start pose (x, y, phi)', default=(0, 0, 0))
+    parser.add_argument('-e', '--end', nargs=3, type=float,
+                        help='specify end pose (x, y, phi)', required=True)
     args = parser.parse_args()
 
-    rs = ReedsShepp(args.x, args.y, args.phi * DEG)
+    rs = ReedsShepp(start=args.start, end=args.end)
     rs.draw()
     plt.show()
