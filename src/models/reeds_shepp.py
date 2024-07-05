@@ -9,6 +9,7 @@ DEG = pi / 180
 pi_2 = pi / 2
 Pose_t = tuple[float, float, float]
 
+
 # util functions and data structures
 def polar(x: float, y: float) -> tuple[float, float]:
     r = sqrt(x ** 2 + y ** 2)
@@ -593,11 +594,12 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument('-s', '--start', nargs=3, type=float,
-                        help='specify start pose (x, y, phi)', default=(0, 0, 0))
+                        help='specify start pose (x, y, phi), phi is in Degree', default=(0, 0, 0))
     parser.add_argument('-e', '--end', nargs=3, type=float,
-                        help='specify end pose (x, y, phi)', required=True)
+                        help='specify end pose (x, y, phi), phi is in Degree', required=True)
     args = parser.parse_args()
 
-    rs = ReedsShepp(start=args.start, end=args.end)
+    rs = ReedsShepp(start=(args.start[0], args.start[1], args.start[2] * DEG),
+                    end=(args.end[0], args.end[1], args.end[2] * DEG))
     rs.draw()
     plt.show()
