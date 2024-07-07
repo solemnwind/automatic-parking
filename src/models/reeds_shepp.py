@@ -66,20 +66,22 @@ rs_types = {
 
 
 class ReedsShepp:
-    def __init__(self, start: Pose_t = (0, 0, 0), end: Pose_t = (1, 0, 0)):
+    def __init__(self, start: Pose_t = (0, 0, 0), end: Pose_t = (1, 0, 0), radius: float = 1.0):
+        assert radius > 0
         self.start = start
         self.end = end
+        self.radius = radius
         x, y, phi = transform2origin(start, end)
         forms = [CSC, CCC, CCCC, CCSC, CCSCC]
         self.path: ReedsSheppPath or None = None
         l_min: float = inf
         for f in forms:
-            p, l = f(x, y, phi)
+            p, l = f(x / radius, y / radius, phi)
             if l < l_min:
                 l_min = l
                 self.path = p
-
-        self.length: float = l_min
+        self.path *= radius
+        self.distance: float = l_min * radius
 
     def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
         if fig is None or ax is None:
@@ -88,6 +90,8 @@ class ReedsShepp:
         ax.set_aspect('equal')
 
         pos = self.start
+        r = self.radius
+        d = 2 * r
         # Plot the path
         for i in range(len(self.path.type)):
             action = self.path.type[i]
@@ -100,21 +104,21 @@ class ReedsShepp:
                     ax.plot([pos[0], pos_next[0]], [pos[1], pos_next[1]], linecolor, linewidth=2)
                     pos = pos_next
                 case RSWord.L:
-                    center = (pos[0] - sin(pos[2]), pos[1] + cos(pos[2]))
+                    center = (pos[0] - r * sin(pos[2]), pos[1] + r * cos(pos[2]))
                     phi_next = mod2pi(pos[2] + amount)
-                    pos_next = [center[0] + sin(phi_next), center[1] - cos(phi_next), phi_next]
+                    pos_next = [center[0] + r * sin(phi_next), center[1] - r * cos(phi_next), phi_next]
                     theta1 = pos[2] * RAD if amount >= 0 else phi_next * RAD
                     theta2 = phi_next * RAD if amount >= 0 else pos[2] * RAD
-                    ax.add_patch(Arc(center, 2, 2, angle=-90,
+                    ax.add_patch(Arc(center, d, d , angle=-90,
                                      theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
                     pos = pos_next
                 case RSWord.R:
-                    center = (pos[0] + sin(pos[2]), pos[1] - cos(pos[2]))
+                    center = (pos[0] + r * sin(pos[2]), pos[1] - r * cos(pos[2]))
                     phi_next = mod2pi(pos[2] - amount)
-                    pos_next = [center[0] - sin(phi_next), center[1] + cos(phi_next), phi_next]
+                    pos_next = [center[0] - r * sin(phi_next), center[1] + r * cos(phi_next), phi_next]
                     theta1 = pos[2] * RAD if amount < 0 else phi_next * RAD
                     theta2 = phi_next * RAD if amount < 0 else pos[2] * RAD
-                    ax.add_patch(Arc(center, 2, 2, angle=90,
+                    ax.add_patch(Arc(center, d, d, angle=90,
                                      theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
                     pos = pos_next
 
@@ -134,13 +138,17 @@ class ReedsSheppPath:
     def __init__(self, path_type: list[RSWord],
                  t: float, u: float, v: float, w: float = None, x: float = None):
         self.type = path_type
-        self.t = t
-        self.u = u
-        self.v = v
-        self.w = w
-        self.x = x
-        self.lengths = [t, u, v, w, x]
+        self.lengths: list[float or None] = [t, u, v, w, x]
         assert len(self.type) == len([l for l in self.lengths if l is not None])
+
+    def __mul__(self, other):
+        if isinstance(other, float) or isinstance(other, int):
+            lengths = self.lengths
+            for i in range(len(self.type)):
+                if self.type[i] == RSWord.S:
+                    lengths[i] = self.lengths[i] * other
+
+            return ReedsSheppPath(self.type, lengths[0], lengths[1], lengths[2], lengths[3], lengths[4])
 
 
 def LpSpLp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
@@ -597,9 +605,17 @@ if __name__ == "__main__":
                         help='specify start pose (x, y, phi), phi is in Degree', default=(0, 0, 0))
     parser.add_argument('-e', '--end', nargs=3, type=float,
                         help='specify end pose (x, y, phi), phi is in Degree', required=True)
+    parser.add_argument('-r', '--radius', type=float,
+                        help='specify turning radius', default=1.0)
     args = parser.parse_args()
 
     rs = ReedsShepp(start=(args.start[0], args.start[1], args.start[2] * DEG),
-                    end=(args.end[0], args.end[1], args.end[2] * DEG))
+                    end=(args.end[0], args.end[1], args.end[2] * DEG),
+                    radius=args.radius)
+
+    print("Driving from {} to {}".format(tuple(args.start), tuple(args.end)))
+    print("The optimal Reeds-Shepp type is {}, the minimum distance is {:.3f}(m)."
+          .format([t.name for t in rs.path.type], rs.distance))
+
     rs.draw()
     plt.show()
