@@ -1,39 +1,86 @@
-from heapq import heappush, heappop, heapify
+from heapq import heappush, heappop
 import numpy as np
-from models.environment import Environment
-from models.reeds_shepp import ReedsShepp
 from typing import Self
 import logging
+from models.environment import Environment
+from models.reeds_shepp import ReedsShepp
+from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
 
-Pose_t = tuple[float, float, float]
-Idx_t = tuple[int, int, int]
+
+class Transition:
+    def __init__(self, delta: Pose_t, is_back: bool, distance: float):
+        self.delta: Pose_t = delta
+        self.reverse: bool = is_back
+        self.distance: float = distance
 
 
-def getNewPose(pose: Pose_t, delta: Pose_t) -> Pose_t:
-    return pose[0] + delta[0], pose[1] + delta[1], pose[2] + delta[2]
+def create_transition_lut(planner_params, astar_params, vehicle_params) -> list[list[Transition]]:
+    # Read parameters
+    theta = vehicle_params["maximum_steering_angle"]
+    wheelbase = vehicle_params["wheelbase"]
+    angle_resolution = planner_params["angle_resolution"]
+    step = astar_params["step_length"]
+    # Pre-compute all the turning radius of possible steering angles
+    maximum_steering_angle_index = discretize_angle(theta, angle_resolution)
+    possible_steering_angle_indices = list(range(1, maximum_steering_angle_index + 1))
+    turns: dict[int, tuple[float, float]] = {}  # key: index, value: (dphi, steering radius)
+    for idx in possible_steering_angle_indices:
+        steering_angle = recover_angle(idx, angle_resolution)
+        r = wheelbase / np.tan(abs(steering_angle))
+        turns[idx] = (step / r, r)
+
+    lut = []
+    for i in range(angle_resolution):
+        phi = recover_angle(i, angle_resolution)
+        candidate_transitions = []
+        # Straight forward/backward
+        dx = step * np.cos(phi)
+        dy = step * np.sin(phi)
+        candidate_transitions.append(Transition((dx, dy, 0), False, step))
+        candidate_transitions.append(Transition((-dx, -dy, 0), True, step))
+
+        # Turning
+        for idx in range(1, maximum_steering_angle_index + 1):
+            dphi, r = turns[idx]
+            dx_ = r * np.sin(dphi)
+            dy_ = r * (1 - np.cos(dphi))
+            dx = dx_ * np.cos(phi) - dy_ * np.sin(phi)
+            dy = dx_ * np.sin(phi) + dy_ * np.cos(phi)
+            candidate_transitions.append(Transition((dx, dy, dphi), False, step))
+            candidate_transitions.append(Transition((-dx, -dy, dphi), True, step))
+            dx = dx_ * np.cos(phi) + dy_ * np.sin(phi)
+            dy = dx_ * np.sin(phi) - dy_ * np.cos(phi)
+            candidate_transitions.append(Transition((dx, dy, -dphi), False, step))
+            candidate_transitions.append(Transition((-dx, -dy, -dphi), True, step))
+
+        lut.append(candidate_transitions)
+
+    return lut
 
 
 class AstarNode:
     def __init__(self, **kwargs):
-        self.open_status: bool or None = None  # True: open; False: closed; None: new node
+        self.open: bool or None = None  # True: open; False: closed; None: new node
         self.pose: Pose_t or None = None
         self.g_score: float = 0
         self.h_score: float = np.inf
         self.parent: Self or None = None
+        self.reverse: bool = False
         if kwargs:
-            self.set(kwargs)
+            self.set(**kwargs)
 
     def set(self,
-            open_status: bool or None = None,
+            open: bool or None = None,
             pose: Pose_t or None = None,
             g_score: float or None = None,
             h_score: float or None = None,
-            parent: Self or None = None):
-        if open_status is not None:
-            self.open_status = open_status
+            parent: Self or None = None,
+            reverse: bool or None = None):
+        if open is not None:
+            self.open = open
         if pose is not None:
             self.pose = pose
         if g_score is not None:
@@ -42,12 +89,13 @@ class AstarNode:
             self.h_score = h_score
         if parent is not None:
             self.parent = parent
+        if reverse is not None:
+            self.reverse = reverse
 
     def get_path(self) -> list[Pose_t]:
         if self.parent is None:
             return [self.pose]
-        return self.parent.get_path() + self.pose
-
+        return self.parent.get_path() + [self.pose]
 
     def cost(self):
         return self.g_score + self.h_score
@@ -61,19 +109,22 @@ class AstarNode:
 
 class AstarSearch:
     def __init__(self, planner_params: dict, astar_params: dict, vehicle_params: dict):
+        self.planner_params = planner_params
+        self.astar_params = astar_params
+        self.vehicle_params = vehicle_params
         self.env: Environment = planner_params["env"]
         self.start: Pose_t = planner_params["start"]
         self.goal: Pose_t = planner_params["goal"]
         self.radius: float = vehicle_params["minimum_turning_radius"]
-        self.astar_params = astar_params
+        self.transition_lut = create_transition_lut(planner_params, astar_params, vehicle_params)
 
     def search(self) -> list[AstarNode] or None:
         # Initialize openlist with start node
         openlist: list[AstarNode] = []  # maintains a priority queue of (the references of) AstarNodes
         discovered_map: dict[Idx_t, AstarNode] = {}  # a unordered map storing discovered AstarNodes
 
-        start_idx = self.env.metric_to_index(self.start)
-        discovered_map[start_idx] = AstarNode(open_status=True,
+        start_idx = self.env.pose_to_index(self.start)
+        discovered_map[start_idx] = AstarNode(open=True,
                                               pose=self.start,
                                               g_score=0,
                                               h_score=self._heuristic_cost(self.start))
@@ -81,8 +132,9 @@ class AstarSearch:
 
         while openlist:
             cur_node = heappop(openlist)
-            if cur_node.open_status is True:
-                cur_node.set(open_status=False)
+            logger.debug(cur_node.pose)
+            if cur_node.open is True:
+                cur_node.set(open=False)
             else:
                 continue
 
@@ -90,34 +142,34 @@ class AstarSearch:
                 logger.info("A path is found.")
                 return cur_node.get_path()
 
-            # TODO: define Transition class and transition_table
-            transitions = []
+            transitions = self.transition_lut[discretize_angle(cur_node.pose[2],
+                                                               self.planner_params["angle_resolution"])]
             for transition in transitions:
-                # TODO: different weight for changing gear
-
-                next_pose = getNewPose(cur_node.pose, transition.delta)
-                # TODO: next_idx = ?
-                next_idx = self.env.metric_to_index(next_pose)
+                next_pose = addPose(cur_node.pose, transition.delta)
+                next_idx = self.env.pose_to_index(next_pose)
+                if self.env.has_collision(next_pose):  # TODO: collision detection
+                    continue
 
                 next_g_cost = transition.distance + cur_node.g_score
                 next_h_cost = self._heuristic_cost(next_pose)
-
-                if self.env.has_collision(next_idx): # TODO: collision detection
-                    continue
+                if cur_node.reverse != transition.reverse:
+                    next_g_cost *= self.planner_params["reverse_penalty"]
 
                 if next_idx not in discovered_map:
-                    discovered_map[next_idx] = AstarNode(open_status=True,
+                    discovered_map[next_idx] = AstarNode(open=True,
                                                          pose=next_pose,
                                                          g_score=next_g_cost,
                                                          h_score=next_h_cost,
-                                                         parent=cur_node)
+                                                         parent=cur_node,
+                                                         reverse=transition.reverse)
                     heappush(openlist, discovered_map[next_idx])
                 else:
                     next_node = discovered_map[next_idx]
-                    if next_node.open_status is True and next_g_cost < next_node.g_score:
+                    if next_node.open is True and next_g_cost < next_node.g_score:
                         next_node.set(g_score=next_g_cost,
                                       h_score=next_h_cost,
-                                      parent=cur_node)
+                                      parent=cur_node,
+                                      reverse=transition.reverse)
                         heappush(openlist, next_node)
 
         logger.warning("No path is found!")
@@ -129,28 +181,52 @@ class AstarSearch:
         else:
             return np.linalg.norm(np.array(self.goal[:2]) - np.array(pose[:2])) * self.astar_params["heuristic_weight"]
 
-    def _near_goal(self, pose):
+    def _near_goal(self, pose: Pose_t):
         # TODO: return True if pose is near the goal
-        if pose == self.goal:
+        if abs(pose[0] - self.goal[0]) < self.planner_params["error_goal_meter"] and \
+           abs(pose[1] - self.goal[1]) < self.planner_params["error_goal_meter"] and \
+           abs(pose[2] - self.goal[2]) < self.planner_params["error_goal_radian"]:
             return True
         return False
-
-    def _get_path(self, pose):
-        return []
 
 
 if __name__ == '__main__':
     from pathlib import Path
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
 
     file = Path(__file__).resolve()
     config_file = file.parent.parent / 'utils/test_parking_lot.toml'
     env = Environment(config_file)
+    car = env.car
 
     planner_params_ = {"env": env,
-                       "start": (3, 2, 90),
-                       "goal": (0.5, 3, 270)}
+                       "start": (2, 2, 0),
+                       "goal": (0.2, 4.3, np.pi / 2),
+                       "angle_resolution": 120,
+                       "reverse_penalty": 1.5,
+                       "error_goal_meter": 0.5,
+                       "error_goal_radian": np.pi / 72}
 
-    astar_params_ = {"heuristic_weight": 1.0,
-                     "use_reeds_shepp": True}
+    astar_params_ = {"heuristic_weight": 1.8,
+                     "use_reeds_shepp": True,
+                     "step_length": 0.5}
 
-    vehicle_params_ = {"minimum_turning_radius": env.car.minimum_turning_radius}
+    vehicle_params_ = {"minimum_turning_radius": env.car.minimum_turning_radius,
+                       "maximum_steering_angle": env.car.max_steering_angle,
+                       "wheelbase": env.car.wheelbase}
+
+    path = AstarSearch(planner_params_, astar_params_, vehicle_params_).search()
+    print(path)
+
+    fig, ax = env.draw()
+
+    plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
+
+    for pose in path:
+        rect = patches.Rectangle(pose[:2], car.width, car.length,
+                                 color='blue', alpha=0.5,
+                                 angle=pose[2] * 180 / np.pi - 90)
+        ax.add_patch(rect)
+
+    plt.show()

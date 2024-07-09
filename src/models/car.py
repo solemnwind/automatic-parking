@@ -1,26 +1,21 @@
 # src/models/car.py
 # Defines 2D car model
 import numpy as np
+# import utils
+from .utils import mod2pi, Pose_t
 
-PlanarVector = tuple[float, float]
-CarDimension = dict[str, float]
-
-default_car_dimension: CarDimension = {"length": 2, "width": 1, "wheelbase": 1.4, "front_to_rear_axle": 1.6}
-
-
-def normalize_radian(rad: float) -> float:
-    return rad % (np.pi * 2)
+default_car_dimension: dict[str, float] = {"length": 2, "width": 1, "wheelbase": 1.4, "front_to_rear_axle": 1.6}
 
 
 def deg2rad(deg: float) -> float:
-    return normalize_radian(deg * np.pi / 180)
+    return mod2pi(deg * np.pi / 180)
 
 
 class Car:
     def __init__(self,
-                 pos: PlanarVector,
+                 pos: tuple[float, float],
                  ori_deg: float,
-                 dim: CarDimension = None,
+                 dim: dict[str, float] = None,
                  max_speed: float = 2.0,
                  max_accel: float = 2.0,
                  max_steering_angle_deg: float = 35.0):
@@ -34,9 +29,10 @@ class Car:
         :param float max_accel: Car's maximum acceleration (m/s^2)
         :param float max_steering_angle_deg: Car's maximum steering angle (degrees)
         """
-        # localization
+        # pose
         self.pos = pos
         self.ori = ori_deg
+        self.pose: Pose_t = (pos[0], pos[1], ori_deg * np.pi / 180)
         # dimensions
         if dim is None:
             dim = default_car_dimension
@@ -48,8 +44,15 @@ class Car:
         # performance
         self.max_speed = max_speed
         self.max_accel = max_accel
+        assert 0 < max_steering_angle_deg < 90, "Max steering angle degree must be less than 90 degrees."
         self.max_steering_angle = max_steering_angle_deg * np.pi / 180
+        self.minimum_turning_radius = self.wheelbase / np.tan(self.max_steering_angle)
+
+    def get_turning_radius(self, theta: float) -> float:
+        if abs(theta) > self.max_steering_angle:
+            raise ValueError("Turning radius exceeds maximum turning radius.")
+        return self.wheelbase / np.tan(abs(theta))
 
 
 if __name__ == '__main__':
-    car1 = Car((1, 0), )
+    car1 = Car((1, 0), 90)
