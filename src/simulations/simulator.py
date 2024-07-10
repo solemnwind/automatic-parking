@@ -1,29 +1,51 @@
+import toml
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
 from models.environment import Environment
-from algorithms.astar_search import AstarSearch, AstarNode
+from models.car import Car
+from algorithms.astar_search import AstarSearch
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("[" + __name__ + "]")
 
 
 class Simulator:
-    def __init__(self, config: str):
-        self.env = Environment(config)
-        self.car = self.env.car
-        planner_params_ = {"env": self.env,
-                           "start": (2.3, 3.0, np.pi / 2),
-                           "goal": (0.7, 5.2, np.pi / 2),
-                           "angle_resolution": 120,
-                           "reverse_penalty": 1.5,
-                           "error_goal_meter": 0.2,
-                           "error_goal_radian": np.pi / 120}
+    def __init__(self, toml_file: str):
+        with open(toml_file, 'r') as f:
+            config = toml.loads(f.read())
+            logger.info('Read scene config: %s', toml_file)
 
-        astar_params_ = {"heuristic_weight": 2.5,
-                         "use_reeds_shepp": True,
-                         "step_length": 0.2}
+            self.env = Environment(config["scene"])
+            self.car = Car(config["vehicle"])
 
-        vehicle_params_ = {"minimum_turning_radius": self.car.minimum_turning_radius,
-                           "maximum_steering_angle": self.car.max_steering_angle,
-                           "wheelbase": self.car.wheelbase}
-        self.search = AstarSearch(planner_params_, astar_params_, vehicle_params_).search
+            start_pose = config["planner"]["start_pose"]
+            goal_pose = config["planner"]["goal_pose"]
+            start_pose[2] *= np.pi / 180
+            goal_pose[2] *= np.pi / 180
+
+            self.car.update(start_pose)
+
+            planner_params_ = {"env": self.env,
+                               "car": self.car,
+                               "start": start_pose,
+                               "goal": goal_pose,
+                               "angle_resolution": config["planner"]["angle_resolution"],
+                               "reverse_penalty": config["planner"]["reverse_penalty"],
+                               "error_goal_meter": config["planner"]["error_goal_meter"],
+                               "error_goal_radian": config["planner"]["error_goal_degree"] * np.pi / 180
+                               }
+
+            astar_params_ = {"heuristic_weight": config["astar"]["heuristic_weight"],
+                             "step_length": config["astar"]["step_length"]
+                             }
+
+            vehicle_params_ = {"minimum_turning_radius": self.car.minimum_turning_radius,
+                               "maximum_steering_angle": self.car.max_steering_angle,
+                               "wheelbase": self.car.wheelbase
+                               }
+
+            self.search = AstarSearch(planner_params_, astar_params_, vehicle_params_).search
 
     def run(self):
         path = self.search()
@@ -32,7 +54,7 @@ class Simulator:
 
             plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
 
-            for pose in path[::2]:
+            for pose in path:
                 self.car.update(pose)
                 self.car.draw(fig, ax)
 
@@ -42,7 +64,6 @@ class Simulator:
 if __name__ == '__main__':
     from pathlib import Path
     file = Path(__file__).resolve()
-    config_file = file.parent.parent / 'utils/test_parking_lot.toml'
-    sim = Simulator(str(config_file))
+    config = str(file.parent.parent / 'utils/test_parking_lot.toml')
 
-    sim.run()
+    Simulator(config).run()

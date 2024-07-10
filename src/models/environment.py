@@ -3,9 +3,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
-import toml
 import logging
-# Import from models module
+# Import from modules
 from .car import Car
 from .utils import Pose_t, Idx_t, discretize_angle, recover_angle
 
@@ -13,74 +12,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
 
 
-def create_collision_lut(car: Car, angle_resolution: int) -> list[list[np.ndarray]]:
-    lut = []
-    for i in range(angle_resolution):
-        checking_points = []
-        phi = recover_angle(i, angle_resolution)
-        # Corners
-        front_left = np.array([car.front_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
-                               car.front_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
-        front_right = np.array([car.front_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
-                                car.front_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
-        rear_left = np.array([-car.rear_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
-                              -car.rear_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
-        rear_right = np.array([-car.rear_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
-                               -car.rear_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
-        # Sample points on the edges
-        for pair in [(front_left, front_right),
-                     (front_right, rear_right),
-                     (rear_right, rear_left),
-                     (rear_left, front_left)]:
-            for t in np.linspace(0, 1, 10, endpoint=False):
-                checking_points.append(pair[0] * (1 - t) + pair[1] * t)
-
-        checking_points.append(np.array((0, 0)))
-        checking_points.append(np.array((car.wheelbase * np.cos(phi), car.wheelbase * np.sin(phi))))
-
-        lut.append(checking_points)
-
-    return lut
-
-
 class Environment:
-    def __init__(self, toml_file, resolution=(.1, .1), margin=.2):
-        self.resolution = resolution
-        self.margin = margin
+    def __init__(self, scene: dict):
         self.origin = None
         self.collision_lut = None
-        self._read_scene_config(toml_file)
-        self._init_occupancy_map()
 
-    def _read_scene_config(self, toml_file):
-        with open(toml_file, 'r') as f:
-            scene = toml.loads(f.read())
-
-        bounds = scene['bounds']
-        objects = scene['objects']
+        self.resolution = scene["resolution"]
         self.name = scene['name']
+        self.west = scene['west']
+        self.east = scene['east']
+        self.south = scene['south']
+        self.north = scene['north']
+        self.obstacles = scene['obstacles']
+        self.slot = scene['slot']
 
-        # Read bounds
-        self.west = bounds['west']
-        self.east = bounds['east']
-        self.south = bounds['south']
-        self.north = bounds['north']
-
-        # Read objects
-        self.obstacles = objects['obstacles']
-        self.slot = objects['slot']
-        car_params = objects['car']
-        dimensions = car_params['dimensions']
-        if isinstance(dimensions, bool):
-            dimensions = None
-        self.car = Car(pos=car_params['position'],
-                       ori_deg=car_params['orientation'],
-                       dim=dimensions,
-                       max_speed=car_params['max_speed'],
-                       max_accel=car_params['max_accel'],
-                       max_steering_angle_deg=car_params['max_steering_angle'])
-
-        logger.info('Read scene config: %s', toml_file)
+        self._init_occupancy_map()
 
     def _metric_to_index(self, metric):
         """
@@ -101,8 +47,8 @@ class Environment:
         """
 
         sign = 1 if outer_bound else -1
-        min_index_res = np.nextafter(self.resolution,  sign * np.inf) # Use for lower corner.
-        max_index_res = np.nextafter(self.resolution, -sign * np.inf) # Use for upper corner.
+        min_index_res = np.nextafter(self.resolution,  sign * np.inf)  # Use for lower corner.
+        max_index_res = np.nextafter(self.resolution, -sign * np.inf)  # Use for upper corner.
 
         # Find minimum included index range.
         min_corner = np.array([west, south])
@@ -120,6 +66,7 @@ class Environment:
     def _init_occupancy_map(self):
         dimensions_metric = np.array([self.east - self.west, self.north - self.south])
         self.map = np.zeros(np.ceil(dimensions_metric / self.resolution).astype('int'), dtype=bool)
+        self.max_indices = self.map.shape
         self.origin = np.array([self.west, self.south])
 
         for obs in self.obstacles:
@@ -133,25 +80,49 @@ class Environment:
         idx_x, idx_y = self._metric_to_index(np.array(pose[:2]))
         return idx_x, idx_y, idx_angle
 
-    def _collides_at_metric(self, coord: np.ndarray) -> bool:
-        if coord[0] < self.west or coord[0] > self.east or \
-           coord[1] < self.south or coord[1] > self.north:
-            # Out of bound
-            return True
-        idx = self._metric_to_index(coord)
-        return self.map[*idx]
-
-    def has_collision(self, pose: Pose_t, car: Car, angle_resolution: int) -> bool:
+    def has_collision(self, idx: Idx_t, car: Car, angle_resolution: int) -> bool:
         if self.collision_lut is None:
-            self.collision_lut = create_collision_lut(car, angle_resolution)
+            self.collision_lut = self._create_collision_lut(car, angle_resolution)
 
-        origin = np.array(pose[:2])
-        checking_points = origin + self.collision_lut[discretize_angle(pose[2], angle_resolution)]
-        for coord in checking_points:
-            if self._collides_at_metric(coord):
+        origin = np.array(idx[:2])
+        checking_points = origin + self.collision_lut[idx[2]]
+        for idx in checking_points:
+            if (idx[0] < 0 or idx[0] >= self.max_indices[0] or
+                idx[1] < 0 or idx[1] >= self.max_indices[1] or
+                    self.map[*idx]):
                 return True
 
         return False
+
+    def _create_collision_lut(self, car: Car, angle_resolution: int) -> list[list[np.ndarray]]:
+        lut = []
+        for i in range(angle_resolution):
+            checking_points = []
+            phi = recover_angle(i, angle_resolution)
+            # Corners
+            front_left = np.array([car.front_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
+                                   car.front_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
+            front_right = np.array([car.front_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
+                                    car.front_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
+            rear_left = np.array([-car.rear_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
+                                  -car.rear_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
+            rear_right = np.array([-car.rear_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
+                                   -car.rear_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
+            # Sample points on the edges
+            for pair in [(front_left, front_right),
+                         (front_right, rear_right),
+                         (rear_right, rear_left),
+                         (rear_left, front_left)]:
+                for t in np.linspace(0, 1, 4, endpoint=False):
+                    checking_points.append(self._metric_to_index(pair[0] * (1 - t) + pair[1] * t))
+
+            checking_points.append(np.array((0, 0)))
+            checking_points.append(self._metric_to_index(np.array((car.wheelbase * np.cos(phi),
+                                                                   car.wheelbase * np.sin(phi)))))
+
+            lut.append(checking_points)
+
+        return lut
 
     def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
         if fig is None or ax is None:
@@ -198,11 +169,3 @@ class Environment:
         plt.gca().set_aspect('equal', adjustable='box')
 
         return fig, ax
-
-
-if __name__ == '__main__':
-    from pathlib import Path
-    file = Path(__file__).resolve()
-    config_file = file.parent.parent / 'utils/test_parking_lot.toml'
-    env = Environment(config_file)
-    env.draw()

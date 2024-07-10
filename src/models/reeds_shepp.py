@@ -110,7 +110,7 @@ class ReedsShepp:
                     pos_next = [center[0] + r * sin(phi_next), center[1] - r * cos(phi_next), phi_next]
                     theta1 = pos[2] * RAD if amount >= 0 else phi_next * RAD
                     theta2 = phi_next * RAD if amount >= 0 else pos[2] * RAD
-                    ax.add_patch(Arc(center, d, d , angle=-90,
+                    ax.add_patch(Arc(center, d, d, angle=-90,
                                      theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
                     pos = pos_next
                 case RSWord.R:
@@ -318,7 +318,7 @@ def tw(u, u1, xi, eta, phi) -> tuple[float, float]:
     delta = mod2pi(u - u1)
     A = sin(u) - sin(delta)
     B = cos(u) - cos(delta) - 1
-    _, t1 = polar(xi * A + eta * B, eta * A - xi * B)
+    t1 = arctan2(eta * A - xi * B, xi * A + eta * B)
     t2 = 2 * cos(delta) - 2 * cos(u1) - 2 * cos(u) + 3
     tau = mod2pi(t1 + pi) if t2 < 0 else mod2pi(t1)
     omega = mod2pi(tau - u + u1 - phi)

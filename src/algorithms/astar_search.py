@@ -3,6 +3,7 @@ import numpy as np
 from typing import Self
 import logging
 from models.environment import Environment
+from models.car import Car
 from models.reeds_shepp import ReedsShepp
 from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
 
@@ -110,6 +111,7 @@ class AstarSearch:
         self.astar_params = astar_params
         self.vehicle_params = vehicle_params
         self.env: Environment = planner_params["env"]
+        self.car: Car = planner_params["car"]
         self.start: Pose_t = planner_params["start"]
         self.goal: Pose_t = planner_params["goal"]
         self.radius: float = vehicle_params["minimum_turning_radius"]
@@ -145,7 +147,7 @@ class AstarSearch:
             for transition in transitions:
                 next_pose = addPose(cur_node.pose, transition.delta)
                 next_idx = self.env.pose_to_index(next_pose, self.angle_resolution)
-                if self.env.has_collision(next_pose, self.env.car, self.angle_resolution):
+                if self.env.has_collision(next_idx, self.car, self.angle_resolution):
                     continue
 
                 next_g_cost = transition.distance + cur_node.g_score
