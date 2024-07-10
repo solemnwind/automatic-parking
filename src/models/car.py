@@ -1,14 +1,11 @@
 # src/models/car.py
 # Defines 2D car model
 import numpy as np
-# import utils
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from .utils import mod2pi, Pose_t
 
-default_car_dimension: dict[str, float] = {"length": 2, "width": 1, "wheelbase": 1.4, "front_to_rear_axle": 1.6}
-
-
-def deg2rad(deg: float) -> float:
-    return mod2pi(deg * np.pi / 180)
+default_car_dimension: dict[str, float] = {"length": 2, "width": 1, "wheelbase": 1.4, "front_to_base_axle": 1.6}
 
 
 class Car:
@@ -30,8 +27,6 @@ class Car:
         :param float max_steering_angle_deg: Car's maximum steering angle (degrees)
         """
         # pose
-        self.pos = pos
-        self.ori = ori_deg
         self.pose: Pose_t = (pos[0], pos[1], ori_deg * np.pi / 180)
         # dimensions
         if dim is None:
@@ -39,8 +34,8 @@ class Car:
         self.length = dim["length"]
         self.width = dim["width"]
         self.wheelbase = dim["wheelbase"]
-        self.front_to_rear_axle = dim["front_to_rear_axle"]
-        self.back_to_rear_axle = self.length - self.front_to_rear_axle
+        self.front_to_base_axle = dim["front_to_base_axle"]
+        self.rear_to_base_axle = self.length - self.front_to_base_axle
         # performance
         self.max_speed = max_speed
         self.max_accel = max_accel
@@ -48,11 +43,20 @@ class Car:
         self.max_steering_angle = max_steering_angle_deg * np.pi / 180
         self.minimum_turning_radius = self.wheelbase / np.tan(self.max_steering_angle)
 
-    def get_turning_radius(self, theta: float) -> float:
-        if abs(theta) > self.max_steering_angle:
-            raise ValueError("Turning radius exceeds maximum turning radius.")
-        return self.wheelbase / np.tan(abs(theta))
+    def update(self, new_pose: Pose_t) -> None:
+        self.pose = new_pose
 
+    def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(111)
 
-if __name__ == '__main__':
-    car1 = Car((1, 0), 90)
+        x, y, phi = self.pose
+        left_bottom = (x - (self.rear_to_base_axle * np.cos(phi) - self.width / 2 * np.sin(phi)),
+                       y - (self.rear_to_base_axle * np.sin(phi) + self.width / 2 * np.cos(phi)))
+
+        rect = patches.Rectangle(left_bottom, self.length, self.width,
+                                 color='blue', alpha=0.3,
+                                 angle=phi * 180 / np.pi)
+        ax.add_patch(rect)
+
+        return fig, ax

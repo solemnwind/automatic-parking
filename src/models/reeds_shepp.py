@@ -2,9 +2,8 @@ from numpy import sin, cos, arcsin, arccos, arctan2, pi, sqrt, inf, abs
 from enum import Enum
 import matplotlib.pyplot as plt
 from matplotlib.patches import Arc
-# import utils
-from .utils import Pose_t, mod2pi
 
+Pose_t = tuple[float, float, float]
 EPS = 1e-10
 RAD = 180 / pi
 DEG = pi / 180
@@ -16,6 +15,16 @@ def polar(x: float, y: float) -> tuple[float, float]:
     r = sqrt(x ** 2 + y ** 2)
     phi = arctan2(y, x)
     return r, phi
+
+
+def mod2pi(theta: float) -> float:
+    """ theta -> (-pi, pi]"""
+    phi = theta % (2 * pi)
+    if phi > pi:
+        phi -= 2 * pi
+    elif phi <= -pi:
+        phi += 2 * pi
+    return phi
 
 
 def transform2origin(start: Pose_t, end: Pose_t) -> Pose_t:

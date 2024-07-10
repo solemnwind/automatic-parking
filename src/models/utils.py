@@ -1,6 +1,5 @@
 import numpy as np
 
-
 Pose_t = tuple[float, float, float]
 Idx_t = tuple[int, int, int]
 

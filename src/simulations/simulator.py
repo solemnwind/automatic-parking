@@ -1,41 +1,48 @@
+import numpy as np
+import matplotlib.pyplot as plt
 from models.environment import Environment
+from algorithms.astar_search import AstarSearch, AstarNode
 
 
 class Simulator:
-    def __init__(self):
-        pass
+    def __init__(self, config: str):
+        self.env = Environment(config)
+        self.car = self.env.car
+        planner_params_ = {"env": self.env,
+                           "start": (2.3, 3.0, np.pi / 2),
+                           "goal": (0.7, 5.2, np.pi / 2),
+                           "angle_resolution": 120,
+                           "reverse_penalty": 1.5,
+                           "error_goal_meter": 0.2,
+                           "error_goal_radian": np.pi / 120}
+
+        astar_params_ = {"heuristic_weight": 2.5,
+                         "use_reeds_shepp": True,
+                         "step_length": 0.2}
+
+        vehicle_params_ = {"minimum_turning_radius": self.car.minimum_turning_radius,
+                           "maximum_steering_angle": self.car.max_steering_angle,
+                           "wheelbase": self.car.wheelbase}
+        self.search = AstarSearch(planner_params_, astar_params_, vehicle_params_).search
+
+    def run(self):
+        path = self.search()
+        if path is not None:
+            fig, ax = self.env.draw()
+
+            plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
+
+            for pose in path[::2]:
+                self.car.update(pose)
+                self.car.draw(fig, ax)
+
+            plt.show()
 
 
 if __name__ == '__main__':
-    # config_file = '../utils/test_parking_lot.toml'
-    # env = Environment(config_file)
-    import matplotlib.pyplot as plt
-    import numpy as np
+    from pathlib import Path
+    file = Path(__file__).resolve()
+    config_file = file.parent.parent / 'utils/test_parking_lot.toml'
+    sim = Simulator(str(config_file))
 
-    # import ctypes
-    #
-    # dll = ctypes.CDLL("../../reeds-shepp-cppbind/reeds-shepp/out/build/x64-release/reeds_shepp.dll")
-
-
-    # def plot_dubins_path(start, end, turning_radius):
-    #     path = dubins.shortest_path(start, end, turning_radius)
-    #     configurations, _ = path.sample_many(0.1)  # Sample points along the path
-    #
-    #     x = [config[0] for config in configurations]
-    #     y = [config[1] for config in configurations]
-    #     theta = [config[2] for config in configurations]
-    #
-    #     plt.plot(x, y, label="Dubins Path")
-    #     plt.scatter([start[0], end[0]], [start[1], end[1]], c='red')  # Start and end points
-    #     plt.arrow(start[0], start[1], 0.5 * np.cos(start[2]), 0.5 * np.sin(start[2]), head_width=0.1, color='red')
-    #     plt.arrow(end[0], end[1], 0.5 * np.cos(end[2]), 0.5 * np.sin(end[2]), head_width=0.1, color='red')
-    #     plt.axis("equal")
-    #     plt.legend()
-    #     plt.show()
-    #
-    #
-    # start = (0, 0, np.deg2rad(0))
-    # end = (10, 10, np.deg2rad(90))
-    # turning_radius = 1.0
-    #
-    # plot_dubins_path(start, end, turning_radius)
+    sim.run()

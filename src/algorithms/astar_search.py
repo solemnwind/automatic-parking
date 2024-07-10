@@ -103,9 +103,6 @@ class AstarNode:
     def __lt__(self, other):
         return self.cost() < other.cost()
 
-    def __gt__(self, other):
-        return self.cost() > other.cost()
-
 
 class AstarSearch:
     def __init__(self, planner_params: dict, astar_params: dict, vehicle_params: dict):
@@ -116,6 +113,7 @@ class AstarSearch:
         self.start: Pose_t = planner_params["start"]
         self.goal: Pose_t = planner_params["goal"]
         self.radius: float = vehicle_params["minimum_turning_radius"]
+        self.angle_resolution = planner_params["angle_resolution"]
         self.transition_lut = create_transition_lut(planner_params, astar_params, vehicle_params)
 
     def search(self) -> list[AstarNode] or None:
@@ -123,7 +121,7 @@ class AstarSearch:
         openlist: list[AstarNode] = []  # maintains a priority queue of (the references of) AstarNodes
         discovered_map: dict[Idx_t, AstarNode] = {}  # a unordered map storing discovered AstarNodes
 
-        start_idx = self.env.pose_to_index(self.start)
+        start_idx = self.env.pose_to_index(self.start, self.angle_resolution)
         discovered_map[start_idx] = AstarNode(open=True,
                                               pose=self.start,
                                               g_score=0,
@@ -133,25 +131,24 @@ class AstarSearch:
         while openlist:
             cur_node = heappop(openlist)
             logger.debug(cur_node.pose)
-            if cur_node.open is True:
-                cur_node.set(open=False)
-            else:
+            if not cur_node.open:
                 continue
+
+            cur_node.set(open=False)
 
             if self._near_goal(cur_node.pose):
                 logger.info("A path is found.")
                 return cur_node.get_path()
 
-            transitions = self.transition_lut[discretize_angle(cur_node.pose[2],
-                                                               self.planner_params["angle_resolution"])]
+            # Iterate neighbors
+            transitions = self.transition_lut[discretize_angle(cur_node.pose[2], self.angle_resolution)]
             for transition in transitions:
                 next_pose = addPose(cur_node.pose, transition.delta)
-                next_idx = self.env.pose_to_index(next_pose)
-                if self.env.has_collision(next_pose):  # TODO: collision detection
+                next_idx = self.env.pose_to_index(next_pose, self.angle_resolution)
+                if self.env.has_collision(next_pose, self.env.car, self.angle_resolution):
                     continue
 
                 next_g_cost = transition.distance + cur_node.g_score
-                next_h_cost = self._heuristic_cost(next_pose)
                 if cur_node.reverse != transition.reverse:
                     next_g_cost *= self.planner_params["reverse_penalty"]
 
@@ -159,7 +156,7 @@ class AstarSearch:
                     discovered_map[next_idx] = AstarNode(open=True,
                                                          pose=next_pose,
                                                          g_score=next_g_cost,
-                                                         h_score=next_h_cost,
+                                                         h_score=self._heuristic_cost(next_pose),
                                                          parent=cur_node,
                                                          reverse=transition.reverse)
                     heappush(openlist, discovered_map[next_idx])
@@ -167,7 +164,6 @@ class AstarSearch:
                     next_node = discovered_map[next_idx]
                     if next_node.open is True and next_g_cost < next_node.g_score:
                         next_node.set(g_score=next_g_cost,
-                                      h_score=next_h_cost,
                                       parent=cur_node,
                                       reverse=transition.reverse)
                         heappush(openlist, next_node)
@@ -176,10 +172,7 @@ class AstarSearch:
         return None
 
     def _heuristic_cost(self, pose) -> float:
-        if self.astar_params["use_reeds_shepp"]:
-            return ReedsShepp(pose, self.goal, self.radius).distance * self.astar_params["heuristic_weight"]
-        else:
-            return np.linalg.norm(np.array(self.goal[:2]) - np.array(pose[:2])) * self.astar_params["heuristic_weight"]
+        return ReedsShepp(pose, self.goal, self.radius).distance * self.astar_params["heuristic_weight"]
 
     def _near_goal(self, pose: Pose_t):
         # TODO: return True if pose is near the goal
@@ -188,45 +181,3 @@ class AstarSearch:
            abs(pose[2] - self.goal[2]) < self.planner_params["error_goal_radian"]:
             return True
         return False
-
-
-if __name__ == '__main__':
-    from pathlib import Path
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as patches
-
-    file = Path(__file__).resolve()
-    config_file = file.parent.parent / 'utils/test_parking_lot.toml'
-    env = Environment(config_file)
-    car = env.car
-
-    planner_params_ = {"env": env,
-                       "start": (2, 2, 0),
-                       "goal": (0.2, 4.3, np.pi / 2),
-                       "angle_resolution": 120,
-                       "reverse_penalty": 1.5,
-                       "error_goal_meter": 0.5,
-                       "error_goal_radian": np.pi / 72}
-
-    astar_params_ = {"heuristic_weight": 1.8,
-                     "use_reeds_shepp": True,
-                     "step_length": 0.5}
-
-    vehicle_params_ = {"minimum_turning_radius": env.car.minimum_turning_radius,
-                       "maximum_steering_angle": env.car.max_steering_angle,
-                       "wheelbase": env.car.wheelbase}
-
-    path = AstarSearch(planner_params_, astar_params_, vehicle_params_).search()
-    print(path)
-
-    fig, ax = env.draw()
-
-    plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
-
-    for pose in path:
-        rect = patches.Rectangle(pose[:2], car.width, car.length,
-                                 color='blue', alpha=0.5,
-                                 angle=pose[2] * 180 / np.pi - 90)
-        ax.add_patch(rect)
-
-    plt.show()

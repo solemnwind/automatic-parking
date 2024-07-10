@@ -6,13 +6,41 @@ import numpy as np
 import toml
 import logging
 # Import from models module
-# import car
-# import utils
 from .car import Car
-from .utils import mod2pi, Pose_t, Idx_t
+from .utils import Pose_t, Idx_t, discretize_angle, recover_angle
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
+
+
+def create_collision_lut(car: Car, angle_resolution: int) -> list[list[np.ndarray]]:
+    lut = []
+    for i in range(angle_resolution):
+        checking_points = []
+        phi = recover_angle(i, angle_resolution)
+        # Corners
+        front_left = np.array([car.front_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
+                               car.front_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
+        front_right = np.array([car.front_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
+                                car.front_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
+        rear_left = np.array([-car.rear_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
+                              -car.rear_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
+        rear_right = np.array([-car.rear_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
+                               -car.rear_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
+        # Sample points on the edges
+        for pair in [(front_left, front_right),
+                     (front_right, rear_right),
+                     (rear_right, rear_left),
+                     (rear_left, front_left)]:
+            for t in np.linspace(0, 1, 10, endpoint=False):
+                checking_points.append(pair[0] * (1 - t) + pair[1] * t)
+
+        checking_points.append(np.array((0, 0)))
+        checking_points.append(np.array((car.wheelbase * np.cos(phi), car.wheelbase * np.sin(phi))))
+
+        lut.append(checking_points)
+
+    return lut
 
 
 class Environment:
@@ -20,6 +48,7 @@ class Environment:
         self.resolution = resolution
         self.margin = margin
         self.origin = None
+        self.collision_lut = None
         self._read_scene_config(toml_file)
         self._init_occupancy_map()
 
@@ -53,35 +82,15 @@ class Environment:
 
         logger.info('Read scene config: %s', toml_file)
 
-    def index_to_metric_negative_corner(self, index):
-        """
-        Return the metric position of the most negative corner of a voxel, given its index in the occupancy grid
-        """
-        return index*np.array(self.resolution) + self.origin
-
-    def index_to_metric_center(self, index):
-        """
-        Return the metric position of the center of a voxel, given its index in the occupancy grid
-        """
-        return self.index_to_metric_negative_corner(index) + self.resolution/2.0
-
-    def metric_to_index(self, metric):
+    def _metric_to_index(self, metric):
         """
         Returns the index of the voxel containing a metric point.
         Remember that this and index_to_metric and not inverses of each other!
         If the metric point lies on a voxel boundary along some coordinate,
-        the returned index is the lesser index.
+        the returned index is
+        the lesser index.
         """
         return np.floor((metric - self.origin)/self.resolution).astype('int')
-
-    def metric_to_index_ceil(self, metric):
-        """
-        Returns the index of the voxel containing a metric point.
-        Remember that this and index_to_metric and not inverses of each other!
-        If the metric point lies on a voxel boundary along some coordinate,
-        the returned index is the lesser index.
-        """
-        return np.ceil((metric - self.origin)/self.resolution).astype('int')
 
     def _metric_to_index_range(self, west, east, south, north, outer_bound=True) -> tuple[int, int, int, int]:
         """
@@ -118,28 +127,36 @@ class Environment:
                                                      outer_bound=True)
             self.map[w:e+1, s:n+1] = True
 
-    def pose_to_index(self, pose: Pose_t, angle_resolution: int = 120) -> Idx_t:
+    def pose_to_index(self, pose: Pose_t, angle_resolution: int) -> Idx_t:
         # Discretize angles
-        unit_angle = 2 * np.pi / angle_resolution
-        idx_angle = int((pose[2] + unit_angle / 2) % (2 * np.pi) // unit_angle)
-        assert 0 <= idx_angle < angle_resolution
-        idx_x, idx_y = self.metric_to_index(np.array(pose[:2]))
+        idx_angle = discretize_angle(pose[2], angle_resolution)
+        idx_x, idx_y = self._metric_to_index(np.array(pose[:2]))
         return idx_x, idx_y, idx_angle
 
-    def index_to_pose(self, index: Idx_t, angle_resolution: int = 120) -> Pose_t:
-        # Recover angle
-        unit_angle = 2 * np.pi / angle_resolution
-        phi = mod2pi(index[2] * unit_angle)
-        assert -np.pi < phi <= np.pi
-        # Recover position
-        return 0, 0, phi
+    def _collides_at_metric(self, coord: np.ndarray) -> bool:
+        if coord[0] < self.west or coord[0] > self.east or \
+           coord[1] < self.south or coord[1] > self.north:
+            # Out of bound
+            return True
+        idx = self._metric_to_index(coord)
+        return self.map[*idx]
 
-    def has_collision(self, pose: Pose_t) -> bool:
-        # TODO
+    def has_collision(self, pose: Pose_t, car: Car, angle_resolution: int) -> bool:
+        if self.collision_lut is None:
+            self.collision_lut = create_collision_lut(car, angle_resolution)
+
+        origin = np.array(pose[:2])
+        checking_points = origin + self.collision_lut[discretize_angle(pose[2], angle_resolution)]
+        for coord in checking_points:
+            if self._collides_at_metric(coord):
+                return True
+
         return False
 
-    def draw(self):
-        fig, ax = plt.subplots()
+    def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
+        if fig is None or ax is None:
+            fig, ax = plt.subplots()
+
         ax.title.set_text(self.name)
         ax.set_xlim(self.west, self.east)
         ax.set_ylim(self.south, self.north)
@@ -179,12 +196,12 @@ class Environment:
             ax.add_patch(arrow)
 
         plt.gca().set_aspect('equal', adjustable='box')
-        # plt.show()
+
         return fig, ax
 
 
 if __name__ == '__main__':
-    from pathlib import Path  # if you haven't already done so
+    from pathlib import Path
     file = Path(__file__).resolve()
     config_file = file.parent.parent / 'utils/test_parking_lot.toml'
     env = Environment(config_file)
