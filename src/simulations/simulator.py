@@ -1,9 +1,11 @@
 import toml
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import logging
 from models.environment import Environment
 from models.car import Car
+from models.utils import Pose_t
 from algorithms.astar_search import AstarSearch
 
 logging.basicConfig(level=logging.INFO)
@@ -47,17 +49,49 @@ class Simulator:
     def run(self):
         path = self.search()
         if path is not None:
-            fig, ax = self.env.draw()
+            if self.config["result"]["save_gif"]:
+                self._draw_gif(path, False)
+            if self.config["result"]["save_png"]:
+                self._draw_png(path, True)
 
-            plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
+    def _draw_png(self, path: list[Pose_t], show=True):
+        fig, ax = self.env.draw()
 
-            for pose in path:
-                self.car.update(pose)
-                self.car.draw(fig, ax)
+        plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
+        for pose in path:
+            self.car.update(pose)
+            ax.add_patch(self.car.patch(redraw=True))
 
-            if self.config["result"]["save"]:
-                plt.savefig(self.config["result"]["path"])
+        if self.config["result"]["save_png"]:
+            plt.savefig(self.config["result"]["png_path"])
 
+        if show:
+            plt.show()
+
+    def _draw_gif(self, path: list[Pose_t], show=True):
+        fig, ax = self.env.draw()
+
+        start_freeze = 20
+        goal_freeze = 40
+        total_frames = len(path) + start_freeze + goal_freeze - 1
+
+        x = [p[0] for p in path]
+        y = [p[1] for p in path]
+
+        def animate(i):
+            line = ax.plot([], [], 'r--')
+            if i < start_freeze:
+                self.car.update(path[0])
+            elif i < len(path) + start_freeze:
+                self.car.update(path[i - start_freeze])
+                line = ax.plot(x[:i - start_freeze], y[:i - start_freeze], 'r--')
+            return ax.add_patch(self.car.patch(redraw=False)), line
+
+        ani = animation.FuncAnimation(fig, animate, repeat=True,
+                                      frames=total_frames, interval=50)
+        ani.save(self.config["result"]["gif_path"], writer='imagemagick', fps=20)
+
+        if show:
             plt.show()
 
 

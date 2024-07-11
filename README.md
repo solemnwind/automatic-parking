@@ -11,7 +11,7 @@ The vehicle is modeled with [Ackermann steering geometry](https://en.wikipedia.o
 the origin $`O`$ is chosen to be the center of the rear axle,
 because the center of the turning circle always lies on the extension of the rear axle. 
 
-![Ackermann geometry](resources/modeling.png)
+<p align="center"><img src="resources/modeling.png" width=400></p>
 
 <!-- ### Kinematic Equations of The Vehicle
 
@@ -50,12 +50,23 @@ or create a new configuration file.
 
 ### Path finding
 
-![](resources/parking-lot-1.png)
-![](resources/parking-lot-2.png)
-![](resources/parking-lot-3.png)
-![](resources/parking-lot-4.png)
+---
+<img src="resources/parking-lot-1.png" width=300>
+<img src="resources/parking-lot-1.gif" width=300>
+
+---
+<img src="resources/parking-lot-2.png" width=300>
+<img src="resources/parking-lot-2.gif" width=300>
+
+---
+<img src="resources/parking-lot-3.png" width=300>
+<img src="resources/parking-lot-3.gif" width=300>
+
+---
+<img src="resources/parking-lot-4.png" width=300>
+<img src="resources/parking-lot-3.gif" width=300>
 
 ### Reeds-Shepp curve
 
-![](resources/reeds-shepp-1.png)
-![](resources/reeds-shepp-2.png)
+<img src="resources/reeds-shepp-1.png" width=300>
+<img src="resources/reeds-shepp-2.png" width=300>

@@ -21,21 +21,23 @@ class Car:
         assert 0 < max_steering_angle_deg < 90, "Max steering angle degree must be less than 90 degrees."
         self.max_steering_angle = max_steering_angle_deg * np.pi / 180
         self.minimum_turning_radius = self.wheelbase / np.tan(self.max_steering_angle)
+        # plot
+        self.rect = None
 
     def update(self, new_pose: Pose_t) -> None:
         self.pose = new_pose
 
-    def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
-        if fig is None or ax is None:
-            fig, ax = plt.subplots(111)
-
+    def patch(self, redraw: bool = True) -> plt.Rectangle:
         x, y, phi = self.pose
         left_bottom = (x - (self.rear_to_base_axle * np.cos(phi) - self.width / 2 * np.sin(phi)),
                        y - (self.rear_to_base_axle * np.sin(phi) + self.width / 2 * np.cos(phi)))
 
-        rect = patches.Rectangle(left_bottom, self.length, self.width,
-                                 color='blue', alpha=0.2,
-                                 angle=phi * 180 / np.pi)
-        ax.add_patch(rect)
+        if redraw or self.rect is None:
+            self.rect = patches.Rectangle(left_bottom, self.length, self.width,
+                                          color='blue', alpha=0.2,
+                                          angle=phi * 180 / np.pi)
+        else:
+            self.rect.set_xy(left_bottom)
+            self.rect.set_angle(phi * 180 / np.pi)
 
-        return fig, ax
+        return self.rect
