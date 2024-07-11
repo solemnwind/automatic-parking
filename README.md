@@ -48,7 +48,14 @@ or create a new configuration file.
 
 ## Demos
 
+### Path finding
+
 ![](resources/parking-lot-1.png)
 ![](resources/parking-lot-2.png)
 ![](resources/parking-lot-3.png)
 ![](resources/parking-lot-4.png)
+
+### Reeds-Shepp curve
+
+![](resources/reeds-shepp-1.png)
+![](resources/reeds-shepp-2.png)
