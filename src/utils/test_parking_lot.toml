@@ -23,7 +23,7 @@ front_to_base_axle = 1.6
 max_steering_angle = 35.0
 
 [planner]
-start_pose = [2.9, 5.0, 45.0]
+start_pose = [4.0, 5.0, 0.0]
 goal_pose = [0.7, 5.2, 90.0]
 angle_resolution = 120
 reverse_penalty = 1.5
@@ -31,6 +31,9 @@ error_goal_meter = 0.2
 error_goal_degree = 1.5
 
 [astar]
-heuristic_weight = 2.5
+heuristic_weight = 1.0
 step_length = 0.2
 
+[result]
+save = true
+path = "../../resources/parking-lot-4.png"
