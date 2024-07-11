@@ -6,7 +6,7 @@ import matplotlib.animation as animation
 from models.environment import Environment
 from models.car import Car
 from models.utils import Pose_t
-from algorithms.astar_search import AstarSearch
+from algorithms.astar_search import AStarSearch
 
 
 class Simulator:
@@ -41,7 +41,7 @@ class Simulator:
                            "wheelbase": self.car.wheelbase
                            }
 
-        self.search = AstarSearch(planner_params_, astar_params_, vehicle_params_).search
+        self.search = AStarSearch(planner_params_, astar_params_, vehicle_params_).search
 
     def run(self):
         path = self.search()

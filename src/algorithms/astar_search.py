@@ -62,7 +62,7 @@ def create_transition_lut(planner_params, astar_params, vehicle_params) -> list[
     return lut
 
 
-class AstarNode:
+class AStarNode:
     def __init__(self, **kwargs):
         self.open: bool or None = None  # True: open; False: closed; None: new node
         self.pose: Pose_t or None = None
@@ -105,7 +105,7 @@ class AstarNode:
         return self.cost() < other.cost()
 
 
-class AstarSearch:
+class AStarSearch:
     def __init__(self, planner_params: dict, astar_params: dict, vehicle_params: dict):
         self.planner_params = planner_params
         self.astar_params = astar_params
@@ -118,13 +118,13 @@ class AstarSearch:
         self.angle_resolution = planner_params["angle_resolution"]
         self.transition_lut = create_transition_lut(planner_params, astar_params, vehicle_params)
 
-    def search(self) -> list[AstarNode] or None:
+    def search(self) -> list[AStarNode] or None:
         # Initialize openlist with start node
-        openlist: list[AstarNode] = []  # maintains a priority queue of (the references of) AstarNodes
-        discovered_map: dict[Idx_t, AstarNode] = {}  # a unordered map storing discovered AstarNodes
+        openlist: list[AStarNode] = []  # maintains a priority queue of (the references of) AstarNodes
+        discovered_map: dict[Idx_t, AStarNode] = {}  # a unordered map storing discovered AstarNodes
 
         start_idx = self.env.pose_to_index(self.start, self.angle_resolution)
-        discovered_map[start_idx] = AstarNode(open=True,
+        discovered_map[start_idx] = AStarNode(open=True,
                                               pose=self.start,
                                               g_score=0,
                                               h_score=self._heuristic_cost(self.start))
@@ -155,7 +155,7 @@ class AstarSearch:
                     next_g_cost *= self.planner_params["reverse_penalty"]
 
                 if next_idx not in discovered_map:
-                    discovered_map[next_idx] = AstarNode(open=True,
+                    discovered_map[next_idx] = AStarNode(open=True,
                                                          pose=next_pose,
                                                          g_score=next_g_cost,
                                                          h_score=self._heuristic_cost(next_pose),

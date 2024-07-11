@@ -29,7 +29,7 @@ The changing rate of the turning angle $`\left|\omega\right| < 1 \ \mathrm{rad\!
 
 ### Simulation Environment
 
-The ([configuration file](./src/utils/test_parking_lot.toml)) defines a test scene.
+The [configuration file](./src/utils/test_parking_lot.toml) defines a test scene.
 You can configure field dimensions, grid resolution, obstacles, vehicle properties, start and goal poses,
 and planner parameters, etc.
 
@@ -81,11 +81,6 @@ In the [plots](#reeds-shepp-curve), the blue paths indicate the car is moving fo
 <p float="left">
 <img src="resources/parking-lot-3.png" width=400>
 <img src="resources/parking-lot-3.gif" width=400>
-</p>
-
-<p float="left">
-<img src="resources/parking-lot-4.png" width=400>
-<img src="resources/parking-lot-4.gif" width=400>
 </p>
 
 ### Reeds-Shepp curve
