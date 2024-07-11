@@ -50,35 +50,36 @@ or create a new configuration file.
 
 ### Path finding
 
----
 <p float="left">
-<img src="resources/parking-lot-1.png" width=300>
-<img src="resources/parking-lot-1.gif" width=300>
+<img src="resources/parking-lot-1.png" width=400>
+<img src="resources/parking-lot-1.gif" width=400>
 </p>
 
----
 <p float="left">
-<img src="resources/parking-lot-2.png" width=300>
-<img src="resources/parking-lot-2.gif" width=300>
+<img src="resources/parking-lot-2.png" width=400>
+<img src="resources/parking-lot-2.gif" width=400>
 </p>
 
----
 <p float="left">
-<img src="resources/parking-lot-3.png" width=300>
-<img src="resources/parking-lot-3.gif" width=300>
+<img src="resources/parking-lot-3.png" width=400>
+<img src="resources/parking-lot-3.gif" width=400>
 </p>
 
----
 <p float="left">
-<img src="resources/parking-lot-4.png" width=300>
-<img src="resources/parking-lot-4.gif" width=300>
+<img src="resources/parking-lot-4.png" width=400>
+<img src="resources/parking-lot-4.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-5.png" width=400>
+<img src="resources/parking-lot-5.gif" width=400>
 </p>
 
 ### Reeds-Shepp curve
 
 <p float="left">
-<img src="resources/reeds-shepp-1.png" width=300>
-<img src="resources/reeds-shepp-2.png" width=300>
-<img src="resources/reeds-shepp-3.png" width=300>
-<img src="resources/reeds-shepp-4.png" width=300>
+<img src="resources/reeds-shepp-1.png" width=400>
+<img src="resources/reeds-shepp-2.png" width=400>
+<img src="resources/reeds-shepp-3.png" width=400>
+<img src="resources/reeds-shepp-4.png" width=400>
 </p>
