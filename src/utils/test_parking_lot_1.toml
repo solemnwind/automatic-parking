@@ -1,0 +1,42 @@
+# A test map for car parking
+
+[scene]
+name = "Parking Lot"
+west = 0.0
+east = 8.0
+south = 0.0
+north = 10.0
+
+resolution = 0.1
+
+obstacles = [
+    { west = 0.0, east = 3.0, south = 3.0, north = 5.3 },
+    { west = 0.0, east = 3.0, south = 7.1, north = 10.0}
+]
+slot = { length = 2.8, width = 1.4, position = [0.1, 6.9], orientation = 0.0 }
+
+[vehicle]
+length = 2
+width = 1
+wheelbase = 1.4
+front_to_base_axle = 1.6
+max_steering_angle = 35.0
+
+[planner]
+# Beware: you need the decimal point for all numbers even if it's an int
+start_pose = [1.0, 0.8, 30.0]
+goal_pose = [0.8, 6.2, 0.0]
+angle_resolution = 120
+reverse_penalty = 1.0
+error_goal_meter = 0.2
+error_goal_degree = 3
+
+[astar]
+heuristic_weight = 1.0
+step_length = 0.2
+
+[result]
+save_png = false
+png_path = "../resources/parking-lot-3.png"
+save_gif = false
+gif_path = "../resources/parking-lot-3.gif"

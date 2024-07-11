@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 import matplotlib.animation as animation
 from models.environment import Environment
 from models.car import Car
@@ -49,13 +51,33 @@ class Simulator:
 
             self._draw_png(path, True)
 
+    def _draw_references(self, ax: plt.Axes, **kwargs):
+        # Highlight the start and goal pose in red and green colors
+        self.car.update(self.config["planner"]["start_pose"])
+        ax.add_patch(self.car.patch(redraw=True, color="red"))
+        self.car.update(self.config["planner"]["goal_pose"])
+        ax.add_patch(self.car.patch(redraw=True, color="green"))
+
+        red_patch = Patch(edgecolor='red', fill=False, label='Start Pose')
+        green_patch = Patch(edgecolor='green', fill=False, label='Goal Pose')
+        blue_patch = Patch(edgecolor='blue', fill=False, label='Vehicle Pose')
+        red_line = Line2D([0], [0], color='red', linewidth=1, linestyle='--', label='Path')
+        yellow_patch = Patch(edgecolor='gold', linestyle='--', fill=False, label='Parking Spot')
+        black_patch = Patch(facecolor='black', alpha=0.7, edgecolor=None, label='Obstacles')
+        handles = [red_patch, green_patch, blue_patch, red_line, yellow_patch, black_patch]
+
+        plt.legend(handles=handles, **kwargs)
+
     def _draw_png(self, path: list[Pose_t], show=True):
         fig, ax = self.env.draw()
 
         plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
+
         for pose in path:
             self.car.update(pose)
             ax.add_patch(self.car.patch(redraw=True))
+
+        self._draw_references(ax, loc='center left', bbox_to_anchor=(1, 0.5))
 
         if self.config["result"]["save_png"]:
             plt.savefig(self.config["result"]["png_path"])
@@ -72,6 +94,8 @@ class Simulator:
 
         x = [p[0] for p in path]
         y = [p[1] for p in path]
+
+        self._draw_references(ax, loc='center left', bbox_to_anchor=(1, 0.5))
 
         def animate(i):
             line = ax.plot([], [], 'r--')

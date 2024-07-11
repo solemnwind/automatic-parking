@@ -23,8 +23,8 @@ front_to_base_axle = 1.6
 max_steering_angle = 35.0
 
 [planner]
-start_pose = [0.7, 5.2, 90.0]
-goal_pose = [2.2, 8.0, 90.0]
+start_pose = [5.5, 5.5, 180.0]  # Beware: you need the decimal point for all numbers even if it's an int
+goal_pose = [0.7, 5.0, 90.0]
 angle_resolution = 120
 reverse_penalty = 1.0
 error_goal_meter = 0.2
@@ -36,6 +36,6 @@ step_length = 0.2
 
 [result]
 save_png = true
-png_path = "../resources/parking-lot-5.png"
+png_path = "../resources/parking-lot-2.png"
 save_gif = true
-gif_path = "../resources/parking-lot-5.gif"
+gif_path = "../resources/parking-lot-2.gif"

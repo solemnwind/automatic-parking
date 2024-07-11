@@ -27,17 +27,24 @@ class Car:
     def update(self, new_pose: Pose_t) -> None:
         self.pose = new_pose
 
-    def patch(self, redraw: bool = True) -> plt.Rectangle:
+    def patch(self, redraw: bool = True, color: str = 'blue') -> plt.Rectangle:
         x, y, phi = self.pose
         left_bottom = (x - (self.rear_to_base_axle * np.cos(phi) - self.width / 2 * np.sin(phi)),
                        y - (self.rear_to_base_axle * np.sin(phi) + self.width / 2 * np.cos(phi)))
 
-        if redraw or self.rect is None:
-            self.rect = patches.Rectangle(left_bottom, self.length, self.width,
-                                          color='blue', alpha=0.2,
-                                          angle=phi * 180 / np.pi)
+        if redraw:
+            rect = patches.Rectangle(left_bottom, self.length, self.width,
+                                     edgecolor=color, fill=None, linestyle="-",
+                                     angle=phi * 180 / np.pi)
+            return rect
         else:
-            self.rect.set_xy(left_bottom)
-            self.rect.set_angle(phi * 180 / np.pi)
+            if self.rect is None:
+                self.rect = patches.Rectangle(left_bottom, self.length, self.width,
+                                              edgecolor=color, fill=None, linestyle="-",
+                                              angle=phi * 180 / np.pi)
+            else:
+                self.rect.set_xy(left_bottom)
+                self.rect.set_angle(phi * 180 / np.pi)
+                self.rect.set_color(color)
 
-        return self.rect
+            return self.rect

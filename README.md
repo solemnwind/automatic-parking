@@ -88,11 +88,6 @@ In the [plots](#reeds-shepp-curve), the blue paths indicate the car is moving fo
 <img src="resources/parking-lot-4.gif" width=400>
 </p>
 
-<p float="left">
-<img src="resources/parking-lot-5.png" width=400>
-<img src="resources/parking-lot-5.gif" width=400>
-</p>
-
 ### Reeds-Shepp curve
 
 <p float="left">
