@@ -1,15 +1,10 @@
-import toml
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import logging
 from models.environment import Environment
 from models.car import Car
 from models.utils import Pose_t
 from algorithms.astar_search import AstarSearch
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("[" + __name__ + "]")
 
 
 class Simulator:
@@ -51,8 +46,8 @@ class Simulator:
         if path is not None:
             if self.config["result"]["save_gif"]:
                 self._draw_gif(path, False)
-            if self.config["result"]["save_png"]:
-                self._draw_png(path, True)
+
+            self._draw_png(path, True)
 
     def _draw_png(self, path: list[Pose_t], show=True):
         fig, ax = self.env.draw()
@@ -93,14 +88,3 @@ class Simulator:
 
         if show:
             plt.show()
-
-
-if __name__ == '__main__':
-    from pathlib import Path
-    toml_file = str(Path(__file__).resolve().parent.parent / 'utils/test_parking_lot.toml')
-
-    with open(toml_file, 'r') as f:
-        configuration = toml.loads(f.read())
-        logger.info('Read scene config: %s', toml_file)
-
-        Simulator(configuration).run()
