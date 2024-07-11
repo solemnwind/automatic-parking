@@ -29,21 +29,39 @@ The changing rate of the turning angle $`\left|\omega\right| < 1 \ \mathrm{rad\!
 
 ### Simulation Environment
 
-The configuration file ([example](./src/utils/test_parking_lot.toml)) defines a test scene including obstacles, one parking slot and one vehicle.
+The ([configuration file](./src/utils/test_parking_lot.toml)) defines a test scene.
+You can configure field dimensions, grid resolution, obstacles, vehicle properties, start and goal poses,
+and planner parameters, etc.
+
+Feel free to add new configuration files or edit the existing one.
 
 ## Usage
 
-To get the shortest Reeds-Shepp curve from one point to another, run:
+In the repository directory:
 ```bash
-python reeds_shepp.py [-h] [-s X Y PHI] -e X Y PHI [-r RADIUS]
+cd ./src
 ```
 
 To run the simulation:
 ```bash
-python ./src/simulations/simulator.py
+python main.py
 ```
 You can change the scene setup and configurations in `src/utils/test_parking_lot.toml`
 or create a new configuration file.
+
+To get the shortest Reeds-Shepp curve from one point to another, run:
+```bash
+cd ./models
+python reeds_shepp.py [-h] [-s X Y PHI] -g X Y PHI [-r RADIUS]
+```
+For example, `python reeds_shepp.py -g 2 1 90 -s 4 0 0 -r 1.5` 
+computes the shortest Reeds-Shepp path from $(4, 0, 0^\circ)$
+to $(2, 1, 90^\circ)$, with the minimum turning radius $1.5$.
+The `-g` parameter is necessary, while `-s` and `-r` are emittable, 
+their default values are $(0, 0, 0^\circ)$ and $1$, respectively.
+
+In the [plots](#reeds-shepp-curve), the blue paths indicate the car is moving forward, while the red paths indicate the car is reversing.
+
 
 
 ## Demos

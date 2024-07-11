@@ -27,13 +27,13 @@ def mod2pi(theta: float) -> float:
     return phi
 
 
-def transform2origin(start: Pose_t, end: Pose_t) -> Pose_t:
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
+def transform2origin(start: Pose_t, goal: Pose_t) -> Pose_t:
+    dx = goal[0] - start[0]
+    dy = goal[1] - start[1]
     theta = -start[2]
     x = dx * cos(theta) - dy * sin(theta)
     y = dx * sin(theta) + dy * cos(theta)
-    phi = mod2pi(end[2] - start[2])
+    phi = mod2pi(goal[2] - start[2])
     return x, y, phi
 
 
@@ -67,12 +67,12 @@ rs_types = {
 
 
 class ReedsShepp:
-    def __init__(self, start: Pose_t = (0, 0, 0), end: Pose_t = (1, 0, 0), radius: float = 1.0):
+    def __init__(self, start: Pose_t = (0, 0, 0), goal: Pose_t = (1, 0, 0), radius: float = 1.0):
         assert radius > 0
         self.start = start
-        self.end = end
+        self.goal = goal
         self.radius = radius
-        x, y, phi = transform2origin(start, end)
+        x, y, phi = transform2origin(start, goal)
         forms = [CSC, CCC, CCCC, CCSC, CCSCC]
         self.path: ReedsSheppPath or None = None
         l_min: float = inf
@@ -123,11 +123,11 @@ class ReedsShepp:
                                      theta1=theta1, theta2=theta2, edgecolor=linecolor, linewidth=2))
                     pos = pos_next
 
-        # Plot the start and end poses
+        # Plot the start and goal poses
         plt.scatter(self.start[0], self.start[1], marker='.', color='gold', s=12)
-        plt.scatter(self.end[0], self.end[1], marker='*', color='g', s=12)
-        plt.quiver([self.start[0], self.end[0]], [self.start[1], self.end[1]],
-                   [cos(self.start[2]), cos(self.end[2])], [sin(self.start[2]), sin(self.end[2])],
+        plt.scatter(self.goal[0], self.goal[1], marker='*', color='g', s=12)
+        plt.quiver([self.start[0], self.goal[0]], [self.start[1], self.goal[1]],
+                   [cos(self.start[2]), cos(self.goal[2])], [sin(self.start[2]), sin(self.goal[2])],
                    color=['gold', 'g'])
 
         ax.autoscale_view()
@@ -604,17 +604,17 @@ if __name__ == "__main__":
     )
     parser.add_argument('-s', '--start', nargs=3, type=float,
                         help='specify start pose (x, y, phi), phi is in Degree', default=(0, 0, 0))
-    parser.add_argument('-e', '--end', nargs=3, type=float,
-                        help='specify end pose (x, y, phi), phi is in Degree', required=True)
+    parser.add_argument('-g', '--goal', nargs=3, type=float,
+                        help='specify goal pose (x, y, phi), phi is in Degree', required=True)
     parser.add_argument('-r', '--radius', type=float,
                         help='specify turning radius', default=1.0)
     args = parser.parse_args()
 
     rs = ReedsShepp(start=(args.start[0], args.start[1], args.start[2] * DEG),
-                    end=(args.end[0], args.end[1], args.end[2] * DEG),
+                    goal=(args.goal[0], args.goal[1], args.goal[2] * DEG),
                     radius=args.radius)
 
-    print("Driving from {} to {}".format(tuple(args.start), tuple(args.end)))
+    print("Driving from {} to {}".format(tuple(args.start), tuple(args.goal)))
     print("The optimal Reeds-Shepp type is {}, the minimum distance is {:.3f}(m)."
           .format([t.name for t in rs.path.type], rs.distance))
 
