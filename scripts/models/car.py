@@ -1,4 +1,4 @@
-# src/models/car.py
+# scripts/models/car.py
 # Defines 2D car model
 import numpy as np
 import matplotlib.pyplot as plt

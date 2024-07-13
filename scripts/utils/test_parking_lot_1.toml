@@ -37,6 +37,6 @@ step_length = 0.2
 
 [result]
 save_png = false
-png_path = "../resources/parking-lot-3.png"
+png_path = "../results/parking-lot-3.png"
 save_gif = false
-gif_path = "../resources/parking-lot-3.gif"
+gif_path = "../results/parking-lot-3.gif"

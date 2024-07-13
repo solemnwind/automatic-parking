@@ -1,4 +1,4 @@
-# src/models/environment.py
+# scripts/models/environment.py
 # Defines 2D road environment with parking slots
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
