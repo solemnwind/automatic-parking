@@ -29,7 +29,7 @@ The changing rate of the turning angle $`\left|\omega\right| < 1 \ \mathrm{rad\!
 
 ### Simulation Environment
 
-The [configuration file](./src/utils/test_parking_lot.toml) defines a test scene.
+The [configuration file](./scripts/utils/test_parking_lot.toml) defines a test scene.
 You can configure field dimensions, grid resolution, obstacles, vehicle properties, start and goal poses,
 and planner parameters, etc.
 
@@ -39,14 +39,14 @@ Feel free to add new configuration files or edit the existing one.
 
 In the repository directory:
 ```bash
-cd ./src
+cd ./scripts
 ```
 
 To run the simulation:
 ```bash
 python main.py
 ```
-You can change the scene setup and configurations in `src/utils/test_parking_lot.toml`
+You can change the scene setup and configurations in `scripts/utils/test_parking_lot.toml`
 or create a new configuration file.
 
 To get the shortest Reeds-Shepp curve from one point to another, run:
