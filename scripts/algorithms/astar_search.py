@@ -4,8 +4,13 @@ from typing import Self
 import logging
 from models.environment import Environment
 from models.car import Car
-from models.reeds_shepp import ReedsShepp
 from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
+
+use_cpp_reeds_shepp = True
+if use_cpp_reeds_shepp:
+    from models._reeds_shepp import get_distance
+else:
+    from models.reeds_shepp import ReedsShepp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
@@ -174,7 +179,11 @@ class AStarSearch:
         return None
 
     def _heuristic_cost(self, pose) -> float:
-        return ReedsShepp(pose, self.goal, self.radius).distance * self.astar_params["heuristic_weight"]
+        if use_cpp_reeds_shepp:
+            return get_distance(pose[0], pose[1], pose[2], self.goal[0], self.goal[1], self.goal[2], self.radius) * \
+                self.astar_params["heuristic_weight"]
+        else:
+            return ReedsShepp(pose, self.goal, self.radius).distance * self.astar_params["heuristic_weight"]
 
     def _near_goal(self, pose: Pose_t):
         # TODO: return True if pose is near the goal
