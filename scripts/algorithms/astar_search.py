@@ -2,7 +2,7 @@ from heapq import heappush, heappop
 import numpy as np
 from typing import Self
 import logging
-from models.environment import Environment
+from models.occupancy_map import OccupancyMap
 from models.car import Car
 from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
 
@@ -115,7 +115,7 @@ class AStarSearch:
         self.planner_params = planner_params
         self.astar_params = astar_params
         self.vehicle_params = vehicle_params
-        self.env: Environment = planner_params["env"]
+        self.occ_map: OccupancyMap = planner_params["env"].occ_map
         self.car: Car = planner_params["car"]
         self.start: Pose_t = planner_params["start"]
         self.goal: Pose_t = planner_params["goal"]
@@ -128,7 +128,7 @@ class AStarSearch:
         openlist: list[AStarNode] = []  # maintains a priority queue of (the references of) AstarNodes
         discovered_map: dict[Idx_t, AStarNode] = {}  # a unordered map storing discovered AstarNodes
 
-        start_idx = self.env.pose_to_index(self.start, self.angle_resolution)
+        start_idx = self.occ_map.pose_to_index(self.start, self.angle_resolution)
         discovered_map[start_idx] = AStarNode(open=True,
                                               pose=self.start,
                                               g_score=0,
@@ -151,8 +151,8 @@ class AStarSearch:
             transitions = self.transition_lut[discretize_angle(cur_node.pose[2], self.angle_resolution)]
             for transition in transitions:
                 next_pose = addPose(cur_node.pose, transition.delta)
-                next_idx = self.env.pose_to_index(next_pose, self.angle_resolution)
-                if self.env.has_collision(next_idx, self.car, self.angle_resolution):
+                next_idx = self.occ_map.pose_to_index(next_pose, self.angle_resolution)
+                if self.occ_map.has_collision(next_idx, self.car, self.angle_resolution):
                     continue
 
                 next_g_cost = transition.distance + cur_node.g_score
