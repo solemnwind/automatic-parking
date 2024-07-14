@@ -8,9 +8,9 @@ double mod2pi(double theta)
 {
     double phi = fmod(theta, 2 * M_PI);
     if (phi > M_PI) {
-        phi -= M_PI;
+        phi -= 2 * M_PI;
     } else if (phi <= -M_PI) {
-        phi += M_PI;
+        phi += 2 * M_PI;
     }
     return phi;
 }
@@ -33,6 +33,19 @@ void tw(double u, double u1, double xi, double eta, double phi, double &tau, dou
     omega = mod2pi(tau - u + u1 - phi);
 }
 
+//====================== class ReedsSheppPath ======================
+
+ReedsSheppPath& ReedsSheppPath::operator*=(double a)
+{
+    for (double& l : m_lengths) {
+        l *= a;
+    }
+    m_distance *= a;
+    return *this;
+}
+
+//---------------------- class ReedsSheppPath ----------------------
+
 //====================== class ReedsShepp ======================
 ReedsShepp::ReedsShepp(Pose_t start, Pose_t goal, double radius)
     : m_start(start), m_goal(goal), m_radius(radius)
@@ -42,7 +55,42 @@ ReedsShepp::ReedsShepp(Pose_t start, Pose_t goal, double radius)
     m_y = normalizedGoal[1];
     m_phi = normalizedGoal[2];
 
-    CSC(path, )
+    double x = m_x / m_radius;
+    double y = m_y / m_radius;
+
+    CSC(x, y, m_phi, m_path);
+    CCC(x, y, m_phi, m_path);
+    CCSC(x, y, m_phi, m_path);
+    CCCC(x, y, m_phi, m_path);
+    CCSCC(x, y, m_phi, m_path);
+
+    m_path *= m_radius;
+}
+
+double ReedsShepp::getDistance() const
+{
+    return m_path.m_distance;
+}
+
+void ReedsShepp::printPathInfo() const
+{
+    cout << "The optimal Reeds-Shepp path type is ";
+    for (const RSWord &w : m_path.m_type) {
+        switch (w){
+            case S:
+                cout << "S";
+                break;
+            case R:
+                cout << "R";
+                break;
+            case L:
+                cout << "L";
+                break;
+            default:
+                break;
+        }
+    }
+    cout << ", the minimum distance is " << m_path.m_distance << "(m)." << endl;
 }
 
 Pose_t ReedsShepp::transformToOrigin(Pose_t &start, Pose_t &goal)
@@ -56,15 +104,6 @@ Pose_t ReedsShepp::transformToOrigin(Pose_t &start, Pose_t &goal)
                   mod2pi(goal[2] - start[2])};
 }
 //---------------------- class ReedsShepp ----------------------
-
-//====================== class ReedsSheppPath ======================
-
-//ReedsSheppPath::ReedsSheppPath(RSPathType pt)
-//{
-//    ;
-//}
-
-//---------------------- class ReedsSheppPath ----------------------
 
 bool LpSpLp(double x, double y, double phi, double &t, double &u, double &v)
 {
@@ -96,13 +135,13 @@ bool LpRnL(double x, double y, double phi, double &t, double &u, double &v)
 {
     double xi, eta, u1, theta;
     xi = x - sin(phi);
-    eta = y - 1 + cos(phi);
+    eta = y - 1. + cos(phi);
     polar(xi, eta, u1, theta);
     if (u1 <= 4.) {
-        u = 2. * asin(u1 / 4.);
-        t = mod2pi(theta - u / 2. + M_PI);
-        v = mod2pi(phi - u - t);
-        if (t >= -EPS && u >= -EPS) {
+        u = -2. * asin(u1 / 4.);
+        t = mod2pi(theta + u / 2. + M_PI);
+        v = mod2pi(phi + u - t);
+        if (t >= -EPS && u <= EPS) {
             return true;
         }
     }
@@ -162,11 +201,11 @@ bool LpRnSnLn(double x, double y, double phi, double &t, double &u, double &v)
 
 bool LpRnSnRn(double x, double y, double phi, double &t, double &u, double &v)
 {
-    double xi, eta, rho, theta;
+    double xi, eta, rho;
     xi = x + sin(phi);
     eta = y - 1. - cos(phi);
     polar(-eta, xi, rho, t);
-    if (rho >= 2) {\
+    if (rho >= 2) {
         u = 2 - rho;
         v = mod2pi(t + M_PI_2 - phi);
         if (t >= -EPS && u <= EPS && v <= EPS) {
@@ -176,49 +215,283 @@ bool LpRnSnRn(double x, double y, double phi, double &t, double &u, double &v)
     return false;
 }
 
+bool LpRnSnLnRp(double x, double y, double phi, double &t, double &u, double &v)
+{
+    double xi, eta, rho, theta;
+    xi = x + sin(phi);
+    eta = y - 1. -cos(phi);
+    polar(eta, xi, rho, theta);
+    if (rho >= 2) {
+        t = mod2pi(theta - acos(-2. / rho));
+        if (t > -EPS) {
+            u = 4. - (xi + 2. * cos(t)) / sin(t);
+            v = mod2pi(t - phi);
+            if (t >= -EPS && u <= EPS && v >= -EPS) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void CSC(double x, double y, double phi, ReedsSheppPath &path)
 {
-    double t, u, v, length;
+    double t, u, v, distance;
     // L+S+L+
     if (LpSpLp(x, y, phi, t, u, v) &&
-            (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({L, S, L}, t, u, v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, S, L}, t, u, v, distance);
     }
     // L-S-L-
     if (LpSpLp(-x, y, -phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({L, S, L}, -t, -u, -v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, S, L}, -t, -u, -v, distance);
     }
     // R+S+R+
     if (LpSpLp(x, -y, -phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({R, S, R}, t, u, v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, S, R}, t, u, v, distance);
     }
     // R-S-R-
     if (LpSpLp(-x, -y, phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({R, S, R}, -t, -u, -v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, S, R}, -t, -u, -v, distance);
     }
 
     // L+S+R+
     if (LpSpRp(x, y, phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({L, S, R}, t, u, v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, S, R}, t, u, v, distance);
     }
     // L-S-R-
     if (LpSpRp(-x, y, -phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({L, S, R}, -t, -u, -v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, S, R}, -t, -u, -v, distance);
     }
     // R+S+L+
     if (LpSpRp(x, -y, -phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({R, S, L}, t, u, v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, S, L}, t, u, v, distance);
     }
     // R-S-L-
     if (LpSpRp(-x, -y, phi, t, u, v) &&
-        (length = abs(t) + abs(u) + abs(v)) < path.m_length) {
-        path = ReedsSheppPath({R, S, L}, -t, -u, -v, length);
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, S, L}, -t, -u, -v, distance);
+    }
+}
+
+void CCC(double x, double y, double phi, ReedsSheppPath &path)
+{
+    double t, u, v, distance;
+    // C|C|C and C|CC
+    // L+R-L
+    if (LpRnL(x, y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L}, t, u, v, distance);
+    }
+    // L-R+L
+    if (LpRnL(-x, y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L}, -t, -u, -v, distance);
+    }
+    // R+L-R
+    if (LpRnL(x, -y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R}, t, u, v, distance);
+    }
+    // R-L+R
+    if (LpRnL(-x, -y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R}, -t, -u, -v, distance);
+    }
+    // CC|C
+    double xb, yb;
+    xb = x * cos(phi) + y * sin(phi);
+    yb = x * sin(phi) - y * cos(phi);
+    // LR-L+
+    if (LpRnL(xb, yb, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L}, v, u, t, distance);
+    }
+    // LR+L-
+    if (LpRnL(-xb, yb, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L}, -v, -u, -t, distance);
+    }
+    // RL-R+
+    if (LpRnL(xb, -yb, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R}, v, u, t, distance);
+    }
+    // RL+R-
+    if (LpRnL(-xb, -yb, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R}, -v, -u, -t, distance);
+    }
+}
+
+void CCCC(double x, double y, double phi, ReedsSheppPath &path)
+{
+    double t, u, v, distance;
+    // CCu|CuC
+    // L+R+L-R-
+    if (LpRpuLnuRn(x, y, phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L, R}, t, u, -u, v, distance);
+    }
+    // L-R-L+R+
+    if (LpRpuLnuRn(-x, y, -phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L, R}, -t, -u, u, -v, distance);
+    }
+    // R+L+R-L-
+    if (LpRpuLnuRn(x, -y, -phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R, L}, t, u, -u, v, distance);
+    }
+    // R-L-R+L+
+    if (LpRpuLnuRn(-x, -y, phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R, L}, -t, -u, u, -v, distance);
+    }
+
+    // C|CuCu|C
+    // L+R-L-R+
+    if (LpRnuLnuRp(x, y, phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L, R}, t, u, u, v, distance);
+    }
+    // L-R+L+R-
+    if (LpRnuLnuRp(-x, y, -phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({L, R, L, R}, -t, -u, -u, -v, distance);
+    }
+    // R+L-R-L+
+    if (LpRnuLnuRp(x, -y, -phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R, L}, t, u, u, v, distance);
+    }
+    // R-L+R+L-
+    if (LpRnuLnuRp(-x, -y, phi, t, u, v) &&
+        (distance = abs(t) + 2. * abs(u) + abs(v)) < path.m_distance) {
+        path = ReedsSheppPath({R, L, R, L}, -t, -u, -u, -v, distance);
+    }
+}
+
+void CCSC(double x, double y, double phi, ReedsSheppPath &path)
+{
+    double t, u, v, distance;
+    // C|C_{pi/2}SC
+    // L+R-S-L-
+    if (LpRnSnLn(x, y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, R, S, L}, t, -M_PI_2, u, v, distance);
+    }
+    // L-R+S+L+
+    if (LpRnSnLn(-x, y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, R, S, L}, -t, M_PI_2, -u, -v, distance);
+    }
+    // R+L-S-R-
+    if (LpRnSnLn(x, -y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, L, S, R}, t, -M_PI_2, u, v, distance);
+    }
+    // R-L+S+R+
+    if (LpRnSnLn(-x, -y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, L, S, R}, -t, M_PI_2, -u, -v, distance);
+    }
+
+    // L+R-S-R-
+    if (LpRnSnRn(x, y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, R, S, R}, t, -M_PI_2, u, v, distance);
+    }
+    // L-R+S+R+
+    if (LpRnSnRn(-x, y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, R, S, R}, -t, M_PI_2, -u, -v, distance);
+    }
+    // R+L-S-L-
+    if (LpRnSnRn(x, -y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, L, S, L}, t, -M_PI_2, u, v, distance);
+    }
+    // R-L+S+L+
+    if (LpRnSnRn(-x, -y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, L, S, L}, -t, M_PI_2, -u, -v, distance);
+    }
+
+    // CS|C_{pi/2}C
+    double xb = x * cos(phi) + y * sin(phi);
+    double yb = x * sin(phi) - y * cos(phi);
+    // L-S-R-L+
+    if (LpRnSnLn(xb, yb, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, S, R, L}, v, u, -M_PI_2, t, distance);
+    }
+    // L+S+R+L-
+    if (LpRnSnLn(-xb, yb, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, S, R, L}, -v, -u, M_PI_2, -t, distance);
+    }
+    // R-S-L-R+
+    if (LpRnSnLn(xb, -yb, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, S, L, R}, v, u, -M_PI_2, t, distance);
+    }
+    // R+S+L+R-
+    if (LpRnSnLn(-xb, -yb, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, S, L, R}, -v, -u, M_PI_2, -t, distance);
+    }
+
+    // R-S-R-L+
+    if (LpRnSnRn(xb, yb, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, S, R, L}, v, u, -M_PI_2, t, distance);
+    }
+    // R+S+R+L-
+    if (LpRnSnRn(-xb, yb, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({R, S, R, L}, -v, -u, M_PI_2, -t, distance);
+    }
+    // L-S-L-R+
+    if (LpRnSnRn(xb, -yb, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, S, L, R}, v, u, -M_PI_2, t, distance);
+    }
+    // L+S+L+R-
+    if (LpRnSnRn(-xb, -yb, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI_2) < path.m_distance) {
+        path = ReedsSheppPath({L, S, L, R}, -v, -u, M_PI_2, -t, distance);
+    }
+}
+
+void CCSCC(double x, double y, double phi, ReedsSheppPath &path)
+{
+    double t, u, v, distance;
+    // L+R-S-L-R+
+    if (LpRnSnLnRp(x, y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI) < path.m_distance) {
+        path = ReedsSheppPath({L, R, S, L, R}, t, -M_PI_2, u, -M_PI_2, v, distance);
+    }
+    // L-R+S+L+R-
+    if (LpRnSnLnRp(-x, y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI) < path.m_distance) {
+        path = ReedsSheppPath({L, R, S, L, R}, -t, M_PI_2, -u, M_PI_2, -v, distance);
+    }
+    // R+L-S-R-L+
+    if (LpRnSnLnRp(x, -y, -phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI) < path.m_distance) {
+        path = ReedsSheppPath({R, L, S, R, L}, t, -M_PI_2, u, -M_PI_2, v, distance);
+    }
+    // R-L+S+R+L-
+    if (LpRnSnLnRp(-x, -y, phi, t, u, v) &&
+        (distance = abs(t) + abs(u) + abs(v) + M_PI) < path.m_distance) {
+        path = ReedsSheppPath({R, L, S, R, L}, -t, M_PI_2, -u, M_PI_2, -v, distance);
     }
 }
 
@@ -227,13 +500,12 @@ double getReedsSheppDistance(double x_start, double y_start, double phi_start,
                              double x_goal, double y_goal, double phi_goal,
                              double radius)
 {
-    ReedsShepp rs({x_start, y_start, phi_start},
-                  {x_goal, y_goal, phi_goal}, radius);
-    return 1.0;
+    ReedsShepp rs({x_start, y_start, phi_start}, {x_goal, y_goal, phi_goal}, radius);
+    return rs.getDistance();
 }
 
 
-PYBIND11_MODULE(reeds_shepp, handle)
+PYBIND11_MODULE(_reeds_shepp, handle)
 {
     handle.doc() = "Get the shortest Reeds-Shepp distance.";
 
