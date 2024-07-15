@@ -5,20 +5,22 @@ from matplotlib.lines import Line2D
 import matplotlib.animation as animation
 from models.environment import Environment
 from models.car import Car
-from models.utils import Pose_t
+from models.utils import Pose_t, mod2pi
 from algorithms.astar_search import AStarSearch
 
 
 class Simulator:
     def __init__(self, config: dict):
         self.config = config
+        config['scene']['obstacles'] = [tuple(obs) for obs in config['scene']['obstacles']]
+
         self.env = Environment(config["scene"])
         self.car = Car(config["vehicle"])
 
         start_pose = config["planner"]["start_pose"]
         goal_pose = config["planner"]["goal_pose"]
-        start_pose[2] *= np.pi / 180
-        goal_pose[2] *= np.pi / 180
+        start_pose[2] = mod2pi(start_pose[2] * np.pi / 180)
+        goal_pose[2] = mod2pi(goal_pose[2] * np.pi / 180)
 
         self.car.update(start_pose)
 
@@ -26,7 +28,7 @@ class Simulator:
                            "car": self.car,
                            "start": start_pose,
                            "goal": goal_pose,
-                           "angle_resolution": config["planner"]["angle_resolution"],
+                           "angle_resolution": int(config["planner"]["angle_resolution"]),
                            "reverse_penalty": config["planner"]["reverse_penalty"],
                            "error_goal_meter": config["planner"]["error_goal_meter"],
                            "error_goal_radian": config["planner"]["error_goal_degree"] * np.pi / 180

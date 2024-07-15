@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import logging
-from .occupancy_map import OccupancyMap
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
@@ -12,9 +11,6 @@ logger = logging.getLogger("[" + __name__ + "]")
 
 class Environment:
     def __init__(self, scene: dict):
-        self.origin = None
-        self.collision_lut = None
-
         self.resolution = scene["resolution"]
         self.name = scene['name']
         self.west = scene['west']
@@ -24,7 +20,6 @@ class Environment:
         self.obstacles = scene['obstacles']
         self.slot = scene['slot']
 
-        self.occ_map = OccupancyMap((self.west, self.east, self.south, self.north), self.obstacles, self.resolution)
 
     def draw(self, fig: plt.Figure = None, ax: plt.Axes = None) -> tuple[plt.Figure, plt.Axes]:
         if fig is None or ax is None:
@@ -36,8 +31,7 @@ class Environment:
 
         # Draw obstacles
         for obs in self.obstacles:
-            rect = patches.Rectangle((obs["west"], obs["south"]),
-                                     obs["east"] - obs["west"], obs["north"] - obs["south"],
+            rect = patches.Rectangle((obs[0], obs[2]), obs[1] - obs[0], obs[3] - obs[2],
                                      facecolor='black', alpha=0.7, edgecolor=None)
             ax.add_patch(rect)
             rect.set_clip_path(rect)

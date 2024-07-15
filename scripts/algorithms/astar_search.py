@@ -2,15 +2,15 @@ from heapq import heappush, heappop
 import numpy as np
 from typing import Self
 import logging
-from models.occupancy_map import OccupancyMap
-from models.car import Car
 from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
 
-use_cpp_reeds_shepp = True
-if use_cpp_reeds_shepp:
+use_cpp_modules = True
+if use_cpp_modules:
     from models._reeds_shepp import get_distance
+    from models._occupancy_map import OccupancyMap
 else:
-    from models.reeds_shepp import ReedsShepp
+    from models.reeds_shepp import get_distance
+    from models.occupancy_map import OccupancyMap
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
@@ -115,20 +115,23 @@ class AStarSearch:
         self.planner_params = planner_params
         self.astar_params = astar_params
         self.vehicle_params = vehicle_params
-        self.occ_map: OccupancyMap = planner_params["env"].occ_map
-        self.car: Car = planner_params["car"]
         self.start: Pose_t = planner_params["start"]
         self.goal: Pose_t = planner_params["goal"]
         self.radius: float = vehicle_params["minimum_turning_radius"]
-        self.angle_resolution = planner_params["angle_resolution"]
+        self.angle_resolution: int = planner_params["angle_resolution"]
         self.transition_lut = create_transition_lut(planner_params, astar_params, vehicle_params)
+
+        env = planner_params["env"]
+        car = planner_params["car"]
+        self.occ_map = OccupancyMap((env.west, env.east, env.south, env.north), env.obstacles, env.resolution,
+                                    self.angle_resolution, car.front_to_base_axle, car.rear_to_base_axle, car.width)
 
     def search(self) -> list[AStarNode] or None:
         # Initialize openlist with start node
         openlist: list[AStarNode] = []  # maintains a priority queue of (the references of) AstarNodes
         discovered_map: dict[Idx_t, AStarNode] = {}  # a unordered map storing discovered AstarNodes
 
-        start_idx = self.occ_map.pose_to_index(self.start, self.angle_resolution)
+        start_idx = tuple(self.occ_map.pose_to_index(self.start))
         discovered_map[start_idx] = AStarNode(open=True,
                                               pose=self.start,
                                               g_score=0,
@@ -151,8 +154,8 @@ class AStarSearch:
             transitions = self.transition_lut[discretize_angle(cur_node.pose[2], self.angle_resolution)]
             for transition in transitions:
                 next_pose = addPose(cur_node.pose, transition.delta)
-                next_idx = self.occ_map.pose_to_index(next_pose, self.angle_resolution)
-                if self.occ_map.has_collision(next_idx, self.car, self.angle_resolution):
+                next_idx = tuple(self.occ_map.pose_to_index(next_pose))
+                if self.occ_map.has_collision(next_idx):
                     continue
 
                 next_g_cost = transition.distance + cur_node.g_score
@@ -179,11 +182,10 @@ class AStarSearch:
         return None
 
     def _heuristic_cost(self, pose) -> float:
-        if use_cpp_reeds_shepp:
-            return get_distance(pose[0], pose[1], pose[2], self.goal[0], self.goal[1], self.goal[2], self.radius) * \
-                self.astar_params["heuristic_weight"]
-        else:
-            return ReedsShepp(pose, self.goal, self.radius).distance * self.astar_params["heuristic_weight"]
+        return get_distance(pose[0], pose[1], pose[2],
+                            self.goal[0], self.goal[1], self.goal[2],
+                            self.radius) * \
+            self.astar_params["heuristic_weight"]
 
     def _near_goal(self, pose: Pose_t):
         # TODO: return True if pose is near the goal

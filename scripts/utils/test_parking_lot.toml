@@ -10,8 +10,9 @@ north = 10.0
 resolution = 0.1
 
 obstacles = [
-    { west = 0.0, east = 1.4, south = 0.0, north = 3.8 },
-    { west = 0.0, east = 1.4, south = 7.0, north = 10.0}
+    # [west, east, south, north]
+    [0.0, 1.4, 0.0, 3.8 ],
+    [0.0, 1.4, 7.0, 10.0]
 ]
 slot = { length = 2.8, width = 1.4, position = [0.0, 4.2], orientation = 90 }
 
@@ -27,7 +28,7 @@ max_steering_angle = 35.0
 start_pose = [2.2, 8.0, 90.0]
 goal_pose = [0.7, 5.0, 90.0]
 angle_resolution = 120
-reverse_penalty = 1.0
+reverse_penalty = 1.2
 error_goal_meter = 0.2
 error_goal_degree = 1.5
 

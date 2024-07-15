@@ -594,6 +594,12 @@ def CCSCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float
     return path, l_min + pi
 
 
+def get_distance(x_start: float, y_start: float, phi_start: float,
+                 x_goal: float, y_goal: float, phi_goal: float,
+                 radius: float) -> float:
+    return ReedsShepp((x_start, y_start, phi_start), (x_goal, y_goal, phi_goal), radius).distance
+
+
 if __name__ == "__main__":
     import argparse
 

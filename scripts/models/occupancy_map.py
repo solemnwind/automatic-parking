@@ -6,17 +6,23 @@ from .utils import Pose_t, Idx_t, discretize_angle, recover_angle
 
 
 class OccupancyMap:
-    def __init__(self, bounds: tuple[float, float, float, float], obstacles: list[dict[str, int]], resolution: float):
+    def __init__(self, bounds: tuple[float, float, float, float], obstacles: list[dict[str, int]],
+                 resolution: float, angle_resolution: int,
+                 vehicle_front_to_base_axle: float, vehicle_rear_to_base_axle: float, vehicle_width: float):
         self.resolution = resolution
-        self.collision_lut = None
+        self.angle_resolution = angle_resolution
 
         dimensions_metric = np.array([bounds[1] - bounds[0], bounds[3] - bounds[2]])
         self.map = np.zeros(np.ceil(dimensions_metric / self.resolution).astype('int'), dtype=bool)
         self.max_indices = self.map.shape
         self.origin = np.array([bounds[0], bounds[2]])
 
+        self.collision_lut = self._create_collision_lut(vehicle_front_to_base_axle,
+                                                        vehicle_rear_to_base_axle,
+                                                        vehicle_width)
+
         for obs in obstacles:
-            w, e, s, n = self._metric_to_index_range(obs["west"], obs["east"], obs["south"], obs["north"],
+            w, e, s, n = self._metric_to_index_range(obs[0], obs[1], obs[2], obs[3],
                                                      outer_bound=True)
             self.map[w:e+1, s:n+1] = True
 
@@ -55,26 +61,26 @@ class OccupancyMap:
         """
         return np.floor((metric - self.origin)/self.resolution).astype('int')
 
-    def pose_to_index(self, pose: Pose_t, angle_resolution: int) -> Idx_t:
+    def pose_to_index(self, pose: Pose_t) -> Idx_t:
         # Discretize angles
-        idx_angle = discretize_angle(pose[2], angle_resolution)
+        idx_angle = discretize_angle(pose[2], self.angle_resolution)
         idx_x, idx_y = self._metric_to_index(np.array(pose[:2]))
         return idx_x, idx_y, idx_angle
 
-    def _create_collision_lut(self, car: Car, angle_resolution: int) -> list[list[np.ndarray]]:
+    def _create_collision_lut(self, front_to_base_axle: float, rear_to_base_axle: float, width: float) -> list[list[np.ndarray]]:
         lut = []
-        for i in range(angle_resolution):
+        for i in range(self.angle_resolution):
             checking_points = []
-            phi = recover_angle(i, angle_resolution)
+            phi = recover_angle(i, self.angle_resolution)
             # Corners
-            front_left = np.array([car.front_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
-                                   car.front_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
-            front_right = np.array([car.front_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
-                                    car.front_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
-            rear_left = np.array([-car.rear_to_base_axle * np.cos(phi) - car.width / 2 * np.sin(phi),
-                                  -car.rear_to_base_axle * np.sin(phi) + car.width / 2 * np.cos(phi)])
-            rear_right = np.array([-car.rear_to_base_axle * np.cos(phi) + car.width / 2 * np.sin(phi),
-                                   -car.rear_to_base_axle * np.sin(phi) - car.width / 2 * np.cos(phi)])
+            front_left = np.array([front_to_base_axle * np.cos(phi) - width / 2 * np.sin(phi),
+                                   front_to_base_axle * np.sin(phi) + width / 2 * np.cos(phi)])
+            front_right = np.array([front_to_base_axle * np.cos(phi) + width / 2 * np.sin(phi),
+                                    front_to_base_axle * np.sin(phi) - width / 2 * np.cos(phi)])
+            rear_left = np.array([-rear_to_base_axle * np.cos(phi) - width / 2 * np.sin(phi),
+                                  -rear_to_base_axle * np.sin(phi) + width / 2 * np.cos(phi)])
+            rear_right = np.array([-rear_to_base_axle * np.cos(phi) + width / 2 * np.sin(phi),
+                                   -rear_to_base_axle * np.sin(phi) - width / 2 * np.cos(phi)])
             # Sample points on the edges
             for pair in [(front_left, front_right),
                          (front_right, rear_right),
@@ -84,17 +90,12 @@ class OccupancyMap:
                     checking_points.append(self._metric_to_index(pair[0] * (1 - t) + pair[1] * t))
 
             checking_points.append(np.array((0, 0)))
-            checking_points.append(self._metric_to_index(np.array((car.wheelbase * np.cos(phi),
-                                                                   car.wheelbase * np.sin(phi)))))
 
             lut.append(checking_points)
 
         return lut
 
-    def has_collision(self, idx: Idx_t, car: Car, angle_resolution: int) -> bool:
-        if self.collision_lut is None:
-            self.collision_lut = self._create_collision_lut(car, angle_resolution)
-
+    def has_collision(self, idx: Idx_t) -> bool:
         origin = np.array(idx[:2])
         checking_points = origin + self.collision_lut[idx[2]]
         for idx in checking_points:
