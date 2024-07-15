@@ -1,7 +1,6 @@
-[submodule "src/reeds_shepp_cpp/pybind11"]
-	path = src/reeds_shepp_cpp/pybind11
-	url = https://github.com/pybind/pybind11
-
 [submodule "src/occupancy_map_cpp/pybind11"]
 	path = src/occupancy_map_cpp/pybind11
-	url = https://github.com/pybind/pybind11
+	url = https://github.com/pybind/pybind11.git
+[submodule "src/reeds_shepp_cpp/pybind11"]
+	path = src/reeds_shepp_cpp/pybind11
+	url = https://github.com/pybind/pybind11.git
