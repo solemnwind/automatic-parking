@@ -4,16 +4,25 @@ from typing import Self
 import logging
 from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
 
-use_cpp_modules = True
-if use_cpp_modules:
-    from models._reeds_shepp import get_distance
-    from models._occupancy_map import OccupancyMap
-else:
-    from models.reeds_shepp import get_distance
-    from models.occupancy_map import OccupancyMap
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
+
+cpp_import_success_string = "Using C++ library: \033[1m{}\033[0m"
+cpp_import_failure_string = "C++ library _reeds_shepp not found! Using fallback Python module: \033[1m{}\033[0m"
+
+try:
+    from models._reeds_shepp import get_distance
+    logger.info(cpp_import_success_string.format("_reeds_shepp"))
+except ImportError:
+    from models.reeds_shepp import get_distance
+    logger.warning(cpp_import_failure_string.format("reeds_shepp"))
+
+try:
+    from models._occupancy_map import OccupancyMap
+    logger.info(cpp_import_success_string.format("_occupancy_map"))
+except ImportError:
+    from models.occupancy_map import OccupancyMap
+    logger.warning(cpp_import_failure_string.format("occupancy_map"))
 
 
 class Transition:
@@ -127,6 +136,7 @@ class AStarSearch:
                                     self.angle_resolution, car.front_to_base_axle, car.rear_to_base_axle, car.width)
 
     def search(self) -> list[AStarNode] or None:
+        logger.info("Searching...")
         # Initialize openlist with start node
         openlist: list[AStarNode] = []  # maintains a priority queue of (the references of) AstarNodes
         discovered_map: dict[Idx_t, AStarNode] = {}  # a unordered map storing discovered AstarNodes
@@ -147,7 +157,7 @@ class AStarSearch:
             cur_node.set(open=False)
 
             if self._near_goal(cur_node.pose):
-                logger.info("A path is found.")
+                logger.info("A path is found!")
                 return cur_node.get_path()
 
             # Iterate neighbors
