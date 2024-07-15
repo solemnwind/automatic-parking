@@ -14,5 +14,5 @@ set (PYTHON_EXECUTABLE "/opt/miniconda3/envs/auto/bin/python")
 
 project(_occupancy_map)
 
-add_subdirectory(../pybind11 ../pybind11)
+add_subdirectory(pybind11)
 pybind11_add_module(_occupancy_map occupancy_map.h occupancy_map.cpp)

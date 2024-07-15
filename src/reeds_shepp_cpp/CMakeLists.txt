@@ -14,5 +14,5 @@ set (PYTHON_EXECUTABLE "/opt/miniconda3/envs/auto/bin/python")
 
 project(_reeds_shepp)
 
-add_subdirectory(../pybind11 ../pybind11)
+add_subdirectory(pybind11)
 pybind11_add_module(_reeds_shepp reeds_shepp.h reeds_shepp.cpp)
