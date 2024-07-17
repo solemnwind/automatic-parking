@@ -10,7 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto=auto")
 
-set (PYTHON_EXECUTABLE "/opt/miniconda3/envs/auto/bin/python")
+set (PYTHON_EXECUTABLE "/opt/miniconda3/envs/automatic-parking/bin/python")
 
 project(_occupancy_map)
 

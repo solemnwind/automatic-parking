@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
 .Python
 build/
@@ -198,3 +195,9 @@ cython_debug/
 
 # Clion
 cmake-build-*
+
+# Temporary files
+/results
+
+# VSCode
+.vscode

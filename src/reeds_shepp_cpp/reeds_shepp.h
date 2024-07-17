@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -13,7 +14,7 @@
 #define INF std::numeric_limits<double>::infinity()
 #define EPS 1e-8
 
-enum RSWord {S, R, L};
+enum RSWord {S = 0, L, R};
 typedef std::array<double, 3> Pose_t;
 typedef std::vector<RSWord> RSPathType;
 
@@ -22,14 +23,13 @@ double mod2pi(double theta);
 void polar(double x, double y, double &r, double &phi);
 void tw(double u, double u1, double xi, double eta, double phi, double &tau, double &omega);
 
-class ReedsSheppPath
+struct ReedsSheppPath
 {
-public:
     RSPathType m_type;
     std::array<double, 5> m_lengths;
+    double m_radius = 1.;
     double m_distance;
 
-public:
     ReedsSheppPath(RSPathType pt, double t, double u, double v, double w, double x, double distance)
             : m_type(std::move(pt)), m_lengths{t, u, v, w, x}, m_distance(distance) {};
     ReedsSheppPath(RSPathType pt, double t, double u, double v, double w, double distance)
@@ -39,6 +39,8 @@ public:
     ReedsSheppPath() : m_lengths{INF, 0., 0., 0., 0.},  m_distance(INF) {};
 
     ReedsSheppPath& operator*=(double a);
+
+    double getDistance() const { return m_distance; };
 };
 
 class ReedsShepp
@@ -52,7 +54,8 @@ private:
 public:
     ReedsShepp(Pose_t start, Pose_t goal, double radius);
 
-    double getDistance() const;
+    double getDistance() const { return m_path.m_distance; };
+    ReedsSheppPath getPath() const { return m_path; };
     void printPathInfo() const;
 
 private:
@@ -75,8 +78,6 @@ void CCSC(double x, double y, double phi, ReedsSheppPath &path);
 void CCSCC(double x, double y, double phi, ReedsSheppPath &path);
 
 
-double getReedsSheppDistance(double x_start, double y_start, double phi_start,
-                             double x_goal, double y_goal, double phi_goal,
-                             double radius);
+double getReedsSheppDistance(Pose_t start, Pose_t goal, double radius);
 
 #endif //REEDS_SHEPP_H

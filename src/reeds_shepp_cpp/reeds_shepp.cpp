@@ -40,6 +40,7 @@ ReedsSheppPath& ReedsSheppPath::operator*=(double a)
     for (double& l : m_lengths) {
         l *= a;
     }
+    m_radius *= abs(a);
     m_distance *= a;
     return *this;
 }
@@ -65,11 +66,6 @@ ReedsShepp::ReedsShepp(Pose_t start, Pose_t goal, double radius)
     CCSCC(x, y, m_phi, m_path);
 
     m_path *= m_radius;
-}
-
-double ReedsShepp::getDistance() const
-{
-    return m_path.m_distance;
 }
 
 void ReedsShepp::printPathInfo() const
@@ -147,7 +143,6 @@ bool LpRnL(double x, double y, double phi, double &t, double &u, double &v)
     }
     return false;
 }
-
 
 bool LpRpuLnuRn(double x, double y, double phi, double &t, double &u, double &v)
 {
@@ -496,19 +491,86 @@ void CCSCC(double x, double y, double phi, ReedsSheppPath &path)
 }
 
 
-double getReedsSheppDistance(double x_start, double y_start, double phi_start,
-                             double x_goal, double y_goal, double phi_goal,
-                             double radius)
+double getReedsSheppDistance(Pose_t startPose, Pose_t goalPose, double radius)
 {
-    ReedsShepp rs({x_start, y_start, phi_start}, {x_goal, y_goal, phi_goal}, radius);
+    ReedsShepp rs(startPose, goalPose, radius);
     return rs.getDistance();
 }
 
-
-PYBIND11_MODULE(_reeds_shepp, handle)
+ReedsSheppPath getReedsSheppPath(Pose_t startPose, Pose_t goalPose, double radius)
 {
-    handle.doc() = "Get the shortest Reeds-Shepp distance.";
+    ReedsShepp rs(startPose, goalPose, radius);
+    return rs.getPath();
+}
 
-    handle.def("get_distance", &getReedsSheppDistance,
-               "Get the shortest Reeds-Shepp distance.");
+Pose_t interpolatePoseAtDistance(Pose_t startPose, ReedsSheppPath &path, double travelledDistance)
+{
+    double t = travelledDistance < 0 ? 0
+                                     : (travelledDistance > path.m_distance ? path.m_distance
+                                                                            : travelledDistance);
+    Pose_t pose = startPose;
+
+    for (unsigned long i = 0; i < path.m_type.size() && t > 0; ++i) {
+        // Get the travelling distance for this segment
+        double x = path.m_lengths[i];
+        if (x > EPS) {
+            x = min(x, t);
+            t -= x;
+        } else if (x < -EPS) {
+            x = max(x, -t);
+            t += x;
+        } else {
+            continue;
+        }
+
+        switch (path.m_type[i]) {
+            case S:
+                cout << "S " << x << endl;
+                pose = Pose_t{pose[0] + x * cos(pose[2]),
+                              pose[1] + x * sin(pose[2]),
+                              pose[2]};
+                break;
+            case L:
+                x = mod2pi(pose[2] + x / path.m_radius);  // New phi angle
+                pose = Pose_t{pose[0] + path.m_radius * (sin(x) - sin(pose[2])),
+                              pose[1] + path.m_radius * (cos(pose[2]) - cos(x)),
+                              x};
+                break;
+            case R:
+                x = mod2pi(pose[2] - x / path.m_radius);  // New phi angle
+                pose = Pose_t{pose[0] + path.m_radius * (sin(pose[2]) - sin(x)),
+                              pose[1] + path.m_radius * (cos(x) - cos(pose[2])),
+                              x};
+                break;
+        }
+    }
+    return pose;
+}
+
+PYBIND11_MODULE(_reeds_shepp, m)
+{
+    m.doc() = "Get the shortest Reeds-Shepp distance.";
+
+    py::enum_<RSWord>(m, "RSWord")
+        .value("S", S)
+        .value("L", L)
+        .value("R", R)
+        .export_values();
+
+    py::class_<ReedsSheppPath>(m, "ReedsSheppPath")
+        .def(py::init<>())
+        .def_readonly("m_type", &ReedsSheppPath::m_type)
+        .def_readonly("m_lengths", &ReedsSheppPath::m_lengths)
+        .def_readonly("m_radius", &ReedsSheppPath::m_radius)
+        .def_readonly("m_distance", &ReedsSheppPath::m_distance)
+        .def("getDistance", &ReedsSheppPath::getDistance);
+
+    m.def("get_reeds_shepp_distance", &getReedsSheppDistance,
+          "Get the shortest Reeds-Shepp distance.");
+
+    m.def("get_reeds_shepp_path", &getReedsSheppPath,
+          "Get the shortest Reeds-Shepp path.");
+
+    m.def("interpolate_reeds_shepp_path", &interpolatePoseAtDistance,
+          "Interpolate at the Reeds-Shepp path.");
 }

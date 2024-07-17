@@ -5,11 +5,9 @@
 #include <cmath>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <iostream>
 #include <vector>
 #include <array>
 #include <utility>
-#include <map>
 
 namespace py = pybind11;
 
