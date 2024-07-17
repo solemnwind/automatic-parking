@@ -2,27 +2,14 @@ from heapq import heappush, heappop
 import numpy as np
 from typing import Self
 import logging
-from models.utils import Pose_t, Idx_t, addPose, discretize_angle, recover_angle
+import time
+# Import from "models" module
+from models import get_reeds_shepp_distance
+from models.utils import Pose_t, addPose, discretize_angle, recover_angle
+from .pathfinding import PathFindingAlgorithm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
-
-cpp_import_success_string = "Using C++ library: \033[1m{}\033[0m"
-cpp_import_failure_string = "C++ library _reeds_shepp not found! Using fallback Python module: \033[1m{}\033[0m"
-
-try:
-    from models._reeds_shepp import get_distance
-    logger.info(cpp_import_success_string.format("_reeds_shepp"))
-except ImportError:
-    from models.reeds_shepp import get_distance
-    logger.warning(cpp_import_failure_string.format("reeds_shepp"))
-
-try:
-    from models._occupancy_map import OccupancyMap
-    logger.info(cpp_import_success_string.format("_occupancy_map"))
-except ImportError:
-    from models.occupancy_map import OccupancyMap
-    logger.warning(cpp_import_failure_string.format("occupancy_map"))
 
 
 class Transition:
@@ -119,27 +106,17 @@ class AStarNode:
         return self.cost() < other.cost()
 
 
-class AStarSearch:
+class AStarSearch(PathFindingAlgorithm):
     def __init__(self, planner_params: dict, astar_params: dict, vehicle_params: dict):
-        self.planner_params = planner_params
-        self.astar_params = astar_params
-        self.vehicle_params = vehicle_params
-        self.start: Pose_t = planner_params["start"]
-        self.goal: Pose_t = planner_params["goal"]
-        self.radius: float = vehicle_params["minimum_turning_radius"]
-        self.angle_resolution: int = planner_params["angle_resolution"]
+        super().__init__(planner_params, astar_params, vehicle_params)
         self.transition_lut = create_transition_lut(planner_params, astar_params, vehicle_params)
 
-        env = planner_params["env"]
-        car = planner_params["car"]
-        self.occ_map = OccupancyMap((env.west, env.east, env.south, env.north), env.obstacles, env.resolution,
-                                    self.angle_resolution, car.front_to_base_axle, car.rear_to_base_axle, car.width)
-
     def search(self) -> list[AStarNode] or None:
-        logger.info("Searching...")
+        logger.info("A* Searching...")
+        start_time = time.time()
         # Initialize openlist with start node
         openlist: list[AStarNode] = []  # maintains a priority queue of (the references of) AstarNodes
-        discovered_map: dict[Idx_t, AStarNode] = {}  # a unordered map storing discovered AstarNodes
+        discovered_map: dict[tuple, AStarNode] = {}  # a unordered map storing discovered AstarNodes
 
         start_idx = tuple(self.occ_map.pose_to_index(self.start))
         discovered_map[start_idx] = AStarNode(open=True,
@@ -150,14 +127,15 @@ class AStarSearch:
 
         while openlist:
             cur_node = heappop(openlist)
-            logger.debug(cur_node.pose)
+
             if not cur_node.open:
                 continue
 
             cur_node.set(open=False)
 
-            if self._near_goal(cur_node.pose):
-                logger.info("A path is found!")
+            if self.near_goal(cur_node.pose):
+                elapsed_ms = round((time.time() - start_time) * 1000)
+                logger.info("A path is found! Time elapsed: {} ms".format(elapsed_ms))
                 return cur_node.get_path()
 
             # Iterate neighbors
@@ -192,15 +170,4 @@ class AStarSearch:
         return None
 
     def _heuristic_cost(self, pose) -> float:
-        return get_distance(pose[0], pose[1], pose[2],
-                            self.goal[0], self.goal[1], self.goal[2],
-                            self.radius) * \
-            self.astar_params["heuristic_weight"]
-
-    def _near_goal(self, pose: Pose_t):
-        # TODO: return True if pose is near the goal
-        if abs(pose[0] - self.goal[0]) < self.planner_params["error_goal_meter"] and \
-           abs(pose[1] - self.goal[1]) < self.planner_params["error_goal_meter"] and \
-           abs(pose[2] - self.goal[2]) < self.planner_params["error_goal_radian"]:
-            return True
-        return False
+        return get_reeds_shepp_distance(pose, self.goal, self.radius) * self.astar_params["heuristic_weight"]

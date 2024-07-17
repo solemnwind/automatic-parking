@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 #include <array>
+#include <algorithm>
 #include <limits>
 
 #define INF std::numeric_limits<double>::infinity()
@@ -56,7 +57,6 @@ public:
 
     double getDistance() const { return m_path.m_distance; };
     ReedsSheppPath getPath() const { return m_path; };
-    void printPathInfo() const;
 
 private:
     static Pose_t transformToOrigin(Pose_t &start, Pose_t &goal);

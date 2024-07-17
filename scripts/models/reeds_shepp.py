@@ -1,3 +1,4 @@
+import numpy as np
 from numpy import sin, cos, arcsin, arccos, arctan2, pi, sqrt, inf, abs
 from enum import Enum
 import matplotlib.pyplot as plt
@@ -106,7 +107,7 @@ class ReedsShepp:
                     pos = pos_next
                 case RSWord.L:
                     center = (pos[0] - r * sin(pos[2]), pos[1] + r * cos(pos[2]))
-                    phi_next = mod2pi(pos[2] + amount)
+                    phi_next = mod2pi(pos[2] + amount / self.radius)
                     pos_next = [center[0] + r * sin(phi_next), center[1] - r * cos(phi_next), phi_next]
                     theta1 = pos[2] * RAD if amount >= 0 else phi_next * RAD
                     theta2 = phi_next * RAD if amount >= 0 else pos[2] * RAD
@@ -115,7 +116,7 @@ class ReedsShepp:
                     pos = pos_next
                 case RSWord.R:
                     center = (pos[0] + r * sin(pos[2]), pos[1] - r * cos(pos[2]))
-                    phi_next = mod2pi(pos[2] - amount)
+                    phi_next = mod2pi(pos[2] - amount / self.radius)
                     pos_next = [center[0] - r * sin(phi_next), center[1] + r * cos(phi_next), phi_next]
                     theta1 = pos[2] * RAD if amount < 0 else phi_next * RAD
                     theta2 = phi_next * RAD if amount < 0 else pos[2] * RAD
@@ -140,16 +141,18 @@ class ReedsSheppPath:
                  t: float, u: float, v: float, w: float = None, x: float = None):
         self.type = path_type
         self.lengths: list[float or None] = [t, u, v, w, x]
-        assert len(self.type) == len([l for l in self.lengths if l is not None])
+        self.radius: float = 1.0
+        self.distance: float = sum(abs(x) for x in self.lengths if x is not None)
 
-    def __mul__(self, other):
+    def __imul__(self, other):
         if isinstance(other, float) or isinstance(other, int):
-            lengths = self.lengths
+            self.radius *= other
+            self.distance *= other
             for i in range(len(self.type)):
-                if self.type[i] == RSWord.S:
-                    lengths[i] = self.lengths[i] * other
-
-            return ReedsSheppPath(self.type, lengths[0], lengths[1], lengths[2], lengths[3], lengths[4])
+                self.lengths[i] *= other
+            return self
+        else:
+            raise TypeError("Unsupported type for *=")
 
 
 def LpSpLp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
@@ -594,10 +597,51 @@ def CCSCC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float
     return path, l_min + pi
 
 
-def get_distance(x_start: float, y_start: float, phi_start: float,
-                 x_goal: float, y_goal: float, phi_goal: float,
-                 radius: float) -> float:
-    return ReedsShepp((x_start, y_start, phi_start), (x_goal, y_goal, phi_goal), radius).distance
+def get_reeds_shepp_distance(start: Pose_t, goal: Pose_t, radius: float) -> float:
+    return ReedsShepp(start, goal, radius).distance
+
+
+def get_reeds_shepp_path(start: Pose_t, goal: Pose_t, radius: float) -> ReedsSheppPath:
+    return ReedsShepp(start, goal, radius).path
+
+
+def interpolate_reeds_shepp_path(start: Pose_t, path: ReedsSheppPath, d: float) -> Pose_t:
+    d = np.clip(d, 0, path.distance)
+    t = d
+    pose = start
+    r = path.radius
+    # Plot the path
+    for i in range(len(path.type)):
+        if t <= 0:
+            break
+
+        amount = path.lengths[i]
+        if -EPS <= amount <= EPS:
+            continue
+        if amount > 0:
+            amount = min(amount, t)
+            t -= amount
+        else:
+            amount = max(amount, -t)
+            t += amount
+
+        match path.type[i]:
+            case RSWord.S:
+                pos_next = [pose[0] + amount * cos(pose[2]), pose[1] + amount * sin(pose[2]), pose[2]]
+                pose = pos_next
+            case RSWord.L:
+                phi_next = mod2pi(pose[2] + amount / path.radius)
+                pos_next = [pose[0] + r * (sin(phi_next) - sin(pose[2])),
+                            pose[1] + r * (-cos(phi_next) + cos(pose[2])),
+                            phi_next]
+                pose = pos_next
+            case RSWord.R:
+                phi_next = mod2pi(pose[2] - amount / path.radius)
+                pos_next = [pose[0] + r * (sin(pose[2]) - sin(phi_next)),
+                            pose[1] + r * (cos(phi_next) - cos(pose[2])),
+                            phi_next]
+                pose = pos_next
+    return pose
 
 
 if __name__ == "__main__":

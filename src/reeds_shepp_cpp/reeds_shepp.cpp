@@ -40,7 +40,7 @@ ReedsSheppPath& ReedsSheppPath::operator*=(double a)
     for (double& l : m_lengths) {
         l *= a;
     }
-    m_radius *= abs(a);
+    m_radius *= a;
     m_distance *= a;
     return *this;
 }
@@ -66,27 +66,6 @@ ReedsShepp::ReedsShepp(Pose_t start, Pose_t goal, double radius)
     CCSCC(x, y, m_phi, m_path);
 
     m_path *= m_radius;
-}
-
-void ReedsShepp::printPathInfo() const
-{
-    cout << "The optimal Reeds-Shepp path type is ";
-    for (const RSWord &w : m_path.m_type) {
-        switch (w){
-            case S:
-                cout << "S";
-                break;
-            case R:
-                cout << "R";
-                break;
-            case L:
-                cout << "L";
-                break;
-            default:
-                break;
-        }
-    }
-    cout << ", the minimum distance is " << m_path.m_distance << "(m)." << endl;
 }
 
 Pose_t ReedsShepp::transformToOrigin(Pose_t &start, Pose_t &goal)
@@ -505,9 +484,7 @@ ReedsSheppPath getReedsSheppPath(Pose_t startPose, Pose_t goalPose, double radiu
 
 Pose_t interpolatePoseAtDistance(Pose_t startPose, ReedsSheppPath &path, double travelledDistance)
 {
-    double t = travelledDistance < 0 ? 0
-                                     : (travelledDistance > path.m_distance ? path.m_distance
-                                                                            : travelledDistance);
+    double t = clamp(travelledDistance, 0., path.m_distance);
     Pose_t pose = startPose;
 
     for (unsigned long i = 0; i < path.m_type.size() && t > 0; ++i) {
@@ -525,7 +502,6 @@ Pose_t interpolatePoseAtDistance(Pose_t startPose, ReedsSheppPath &path, double 
 
         switch (path.m_type[i]) {
             case S:
-                cout << "S " << x << endl;
                 pose = Pose_t{pose[0] + x * cos(pose[2]),
                               pose[1] + x * sin(pose[2]),
                               pose[2]};
@@ -549,7 +525,7 @@ Pose_t interpolatePoseAtDistance(Pose_t startPose, ReedsSheppPath &path, double 
 
 PYBIND11_MODULE(_reeds_shepp, m)
 {
-    m.doc() = "Get the shortest Reeds-Shepp distance.";
+    m.doc() = "C++ Reeds-Shepp model and interface";
 
     py::enum_<RSWord>(m, "RSWord")
         .value("S", S)
@@ -559,11 +535,10 @@ PYBIND11_MODULE(_reeds_shepp, m)
 
     py::class_<ReedsSheppPath>(m, "ReedsSheppPath")
         .def(py::init<>())
-        .def_readonly("m_type", &ReedsSheppPath::m_type)
-        .def_readonly("m_lengths", &ReedsSheppPath::m_lengths)
-        .def_readonly("m_radius", &ReedsSheppPath::m_radius)
-        .def_readonly("m_distance", &ReedsSheppPath::m_distance)
-        .def("getDistance", &ReedsSheppPath::getDistance);
+        .def_readonly("type", &ReedsSheppPath::m_type)
+        .def_readonly("lengths", &ReedsSheppPath::m_lengths)
+        .def_readonly("radius", &ReedsSheppPath::m_radius)
+        .def_readonly("distance", &ReedsSheppPath::m_distance);
 
     m.def("get_reeds_shepp_distance", &getReedsSheppDistance,
           "Get the shortest Reeds-Shepp distance.");

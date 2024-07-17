@@ -7,6 +7,7 @@ from models.environment import Environment
 from models.car import Car
 from models.utils import Pose_t, mod2pi
 from algorithms.astar_search import AStarSearch
+from algorithms.rrtstar import RRTStar
 
 
 class Simulator:
@@ -43,7 +44,7 @@ class Simulator:
                            "wheelbase": self.car.wheelbase
                            }
 
-        self.search = AStarSearch(planner_params_, astar_params_, vehicle_params_).search
+        self.search = RRTStar(planner_params_, astar_params_, vehicle_params_).search
 
     def run(self):
         path = self.search()
