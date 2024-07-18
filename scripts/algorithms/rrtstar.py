@@ -68,7 +68,7 @@ class RRTStar(PathFindingAlgorithm):
             logger.info("No path is found within the time budget of {} ms!".format(self.time_budget))
             return None
 
-    def grow(self):
+    def grow(self) -> None:
         # Sample new node
         sample = self._sample_new_pose()
 

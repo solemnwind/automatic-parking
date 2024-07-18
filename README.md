@@ -129,6 +129,11 @@ The target file is `_occupancy_map.*.so` for Linux and macOS and `_occupancy_map
 <img src="resources/parking-lot-3-rrtstar.gif" width=400>
 </p>
 
+<p float="left">
+<img src="resources/parking-lot-4-rrtstar.png" width=400>
+<img src="resources/parking-lot-4-rrtstar.gif" width=400>
+</p>
+
 ### Reeds-Shepp curve
 
 <p float="left">
