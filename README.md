@@ -90,9 +90,7 @@ mkdir build && cd build
 cmake ..
 make
 ```
-You will find the compiled shared library file in the `build` directory.
-The target file is `_occupancy_map.*.so` for Linux and macOS and `_occupancy_map.*.dll` for Windows.
-To use them with the python project, place them into `scripts/models/`.
+The target file is `_occupancy_map.*.so` for Linux and macOS and `_occupancy_map.*.dll` for Windows. Upon successful compilation, the generated binary file will be copied to `scripts/models`.
 
 
 ## Demos

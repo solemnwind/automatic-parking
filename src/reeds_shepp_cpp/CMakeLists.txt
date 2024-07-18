@@ -16,3 +16,9 @@ project(_reeds_shepp)
 
 add_subdirectory(pybind11)
 pybind11_add_module(_reeds_shepp reeds_shepp.h reeds_shepp.cpp)
+
+set(DEST_DIR ${CMAKE_SOURCE_DIR}/../../scripts/models)
+
+add_custom_command(TARGET _reeds_shepp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_reeds_shepp> ${DEST_DIR}
+)
