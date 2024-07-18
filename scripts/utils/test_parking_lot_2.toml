@@ -2,17 +2,19 @@
 
 [scene]
 name = "Parking Lot"
-west = 0.0
+west = -4.0
 east = 6.0
-south = 0.0
+south = -5.0
 north = 10.0
 
 resolution = 0.1
 
 obstacles = [
-# [west, east, south, north]
-    [0.0, 3.0, 3.0, 5.3 ],
-    [0.0, 3.0, 7.1, 10.0]
+    # [west, east, south, north]
+    [0.0, 1.4, 0.0, 10.0 ],
+    [-2.0, 0.0, 3.0, 5.0],
+	[-1.2, -0.4, 8.0, 9.6],
+	[-1.0, 1.0, -5.0, -2.0]
 ]
 
 [vehicle]
@@ -24,13 +26,13 @@ max_steering_angle = 35.0
 
 [planner]
 # Beware: you need the decimal point for all numbers even if it's an int
-start_pose = [1.0, 0.5, 80.0]
-goal_pose = [0.8, 6.2, 0.0]
+start_pose = [5.2, 5.0, 180.0]
+goal_pose = [-0.7, 6.0, 90.0]
 angle_resolution = 120
 reverse_penalty = 1.2
 error_goal_meter = 0.2
 error_goal_degree = 1.5
-algorithm = "rrtstar"
+algorithm = "rrtstar"  # "astar" or "rrtstar"
 
 [astar]
 heuristic_weight = 1.0
@@ -38,7 +40,7 @@ step_length = 0.2
 
 [rrtstar]
 step_length = 0.2
-time_budget = 200  # ms
+time_budget = 2000  # ms
 neighboring_range = 2
 
 [result]

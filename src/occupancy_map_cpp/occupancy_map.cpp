@@ -55,7 +55,8 @@ void OccupancyMap::createCollisionLUT(double vehicleFrontToBase, double vehicleR
             for (double t : edgeSamples) {
                 coord_t sample{edge.first[0] * (1. - t) + edge.second[0] * t,
                                edge.first[1] * (1. - t) + edge.second[1] * t};
-                m_collisionLUTs[i].push_back(convertMetricToIndexFloor(sample));
+                m_collisionLUTs[i].push_back({(int)floor(sample[0] / m_resolution),
+                                              (int)floor(sample[1] / m_resolution)});
             }
         }
         // Also check the base

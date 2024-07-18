@@ -58,24 +58,25 @@ class Simulator:
     def _draw_references(self, ax: plt.Axes, **kwargs):
         # Highlight the start and goal pose in red and green colors
         self.car.update(self.config["planner"]["start_pose"])
-        ax.add_patch(self.car.patch(redraw=True, color="red"))
+        ax.add_patch(self.car.patch(redraw=True, color="red", expand=True))
+        ax.add_patch(self.car.arrow(color="red"))
         self.car.update(self.config["planner"]["goal_pose"])
-        ax.add_patch(self.car.patch(redraw=True, color="green"))
+        ax.add_patch(self.car.patch(redraw=True, color="green", expand=True))
+        ax.add_patch(self.car.arrow(color="green"))
 
         red_patch = Patch(edgecolor='red', fill=False, label='Start Pose')
         green_patch = Patch(edgecolor='green', fill=False, label='Goal Pose')
         blue_patch = Patch(edgecolor='blue', fill=False, label='Vehicle Pose')
-        red_line = Line2D([0], [0], color='red', linewidth=1, linestyle='--', label='Path')
-        yellow_patch = Patch(edgecolor='gold', linestyle='--', fill=False, label='Parking Spot')
+        path_line = Line2D([0], [0], color='m', linewidth=1, linestyle='-', label='Path')
         black_patch = Patch(facecolor='black', alpha=0.7, edgecolor=None, label='Obstacles')
-        handles = [red_patch, green_patch, blue_patch, red_line, yellow_patch, black_patch]
+        handles = [red_patch, green_patch, blue_patch, path_line, black_patch]
 
         plt.legend(handles=handles, **kwargs)
 
     def _draw_png(self, path: list[Pose_t], show=True):
         fig, ax = self.env.draw()
 
-        plt.plot([p[0] for p in path], [p[1] for p in path], 'r--')
+        plt.plot([p[0] for p in path], [p[1] for p in path], '-', c="m", linewidth=.7)
 
         for pose in path:
             self.car.update(pose)
@@ -102,12 +103,12 @@ class Simulator:
         self._draw_references(ax, loc='center left', bbox_to_anchor=(1, 0.5))
 
         def animate(i):
-            line = ax.plot([], [], 'r--')
+            line = ax.plot([], [], '-', c="m")
             if i < start_freeze:
                 self.car.update(path[0])
             elif i < len(path) + start_freeze:
                 self.car.update(path[i - start_freeze])
-                line = ax.plot(x[:i - start_freeze], y[:i - start_freeze], 'r--')
+                line = ax.plot(x[:i - start_freeze], y[:i - start_freeze], '-', c="m", linewidth=.7)
             return ax.add_patch(self.car.patch(redraw=False)), line
 
         ani = animation.FuncAnimation(fig, animate, repeat=True,

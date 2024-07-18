@@ -10,11 +10,10 @@ north = 10.0
 resolution = 0.1
 
 obstacles = [
-    # [west, east, south, north]
+# [west, east, south, north]
     [0.0, 1.4, 0.0, 3.8 ],
     [0.0, 1.4, 7.0, 10.0]
 ]
-slot = { length = 2.8, width = 1.4, position = [0.0, 4.2], orientation = 90 }
 
 [vehicle]
 length = 2
@@ -25,7 +24,7 @@ max_steering_angle = 35.0
 
 [planner]
 # Beware: you need the decimal point for all numbers even if it's an int
-start_pose = [2.5, 1.0, 0.0]
+start_pose = [5.2, 5.0, 180.0]
 goal_pose = [0.7, 5.0, 90.0]
 angle_resolution = 120
 reverse_penalty = 1.2
@@ -34,16 +33,16 @@ error_goal_degree = 1.5
 algorithm = "rrtstar"  # "astar" or "rrtstar"
 
 [astar]
-heuristic_weight = 2.0
+heuristic_weight = 1.0
 step_length = 0.2
 
 [rrtstar]
 step_length = 0.2
-time_budget = 200  # ms
+time_budget = 100  # ms
 neighboring_range = 2
 
 [result]
 save_png = false
-png_path = "../results/parking-lot-2.png"
+png_path = "../results/parking-lot.png"
 save_gif = false
-gif_path = "../results/parking-lot-2.gif"
+gif_path = "../results/parking-lot.gif"

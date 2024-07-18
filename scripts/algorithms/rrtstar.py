@@ -47,16 +47,26 @@ class RRTStar(PathFindingAlgorithm):
         self.goal_reached: bool = False
         self.goal_node = RRTNode(self.goal, None, np.inf, np.inf, 0)
 
-    def search(self):
+    def search(self) -> list[Pose_t] | None:
         logger.info("RRT* Searching...")
         start_time = time.time()
+
+        goal_idx = tuple(self.occ_map.pose_to_index(self.goal))
+        if self.occ_map.has_collision(goal_idx):
+            logger.warning("The goal is unreachable!")
+            return None
+
         time_budget_s = self.time_budget / 1e3
-        while (time.time() - start_time < time_budget_s) or (not self.goal_reached):
+        while time.time() - start_time < time_budget_s:
             self.grow()
 
         elapsed_ms = round((time.time() - start_time) * 1000)
-        logger.info("A path is found! Time elapsed: {} ms".format(elapsed_ms))
-        return self.goal_node.get_path(self.step)
+        if self.goal_reached:
+            logger.info("A path is found! Time elapsed: {} ms".format(elapsed_ms))
+            return self.goal_node.get_path(self.step)
+        else:
+            logger.info("No path is found within the time budget of {} ms!".format(self.time_budget))
+            return None
 
     def grow(self):
         # Sample new node

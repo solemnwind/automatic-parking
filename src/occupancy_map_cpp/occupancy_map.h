@@ -8,6 +8,7 @@
 #include <vector>
 #include <array>
 #include <utility>
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -33,28 +34,23 @@ public:
                  double resolution, int angleResolution,
                  double vehicleFrontToBase, double vehicleRearToBase, double vehicleWidth);
 
-    [[nodiscard]]
     std::array<int, 3> poseToIndex(std::array<double, 3> pose) const;
 
-    [[nodiscard]]
     bool hasCollision(std::array<int, 3> poseIndices) const;
 
 private:
-    [[nodiscard]]
     index_t convertMetricToIndexFloor(coord_t metrics) const
     {
         return index_t{(int)floor((metrics[0] - m_origin[0]) / m_resolution),
                        (int)floor((metrics[1] - m_origin[1]) / m_resolution)};
     };
 
-    [[nodiscard]]
     index_t convertMetricToIndexCeil(coord_t metrics) const
     {
         return index_t{(int)ceil((metrics[0] - m_origin[0]) / m_resolution),
                        (int)ceil((metrics[1] - m_origin[1]) / m_resolution)};
     };
 
-    [[nodiscard]]
     bool isOutOfBound(int u, int v) const
     {
         return (u < 0 || v < 0 || u >= m_width || v >= m_height);
