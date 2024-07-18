@@ -108,7 +108,8 @@ class AStarNode:
 
 class AStarSearch(PathFindingAlgorithm):
     def __init__(self, planner_params: dict, astar_params: dict, vehicle_params: dict):
-        super().__init__(planner_params, astar_params, vehicle_params)
+        super().__init__(planner_params, vehicle_params)
+        self.astar_params: dict = astar_params
         self.transition_lut = create_transition_lut(planner_params, astar_params, vehicle_params)
 
     def search(self) -> list[AStarNode] or None:

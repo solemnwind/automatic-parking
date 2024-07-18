@@ -35,16 +35,17 @@ class Simulator:
                            "error_goal_radian": config["planner"]["error_goal_degree"] * np.pi / 180
                            }
 
-        astar_params_ = {"heuristic_weight": config["astar"]["heuristic_weight"],
-                         "step_length": config["astar"]["step_length"]
-                         }
-
         vehicle_params_ = {"minimum_turning_radius": self.car.minimum_turning_radius,
                            "maximum_steering_angle": self.car.max_steering_angle,
                            "wheelbase": self.car.wheelbase
                            }
 
-        self.search = RRTStar(planner_params_, astar_params_, vehicle_params_).search
+        if config["planner"]["algorithm"] == "rrtstar":
+            rrtstar_params_ = config["rrtstar"]
+            self.search = RRTStar(planner_params_, rrtstar_params_, vehicle_params_).search
+        elif config["planner"]["algorithm"] == "astar":
+            astar_params_ = config["astar"]
+            self.search = AStarSearch(planner_params_, astar_params_, vehicle_params_).search
 
     def run(self):
         path = self.search()

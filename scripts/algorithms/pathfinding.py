@@ -8,9 +8,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("[" + __name__ + "]")
 
 class PathFindingAlgorithm:
-    def __init__(self, planner_params: dict, astar_params: dict, vehicle_params: dict):
+    def __init__(self, planner_params: dict, vehicle_params: dict):
         self.planner_params = planner_params
-        self.astar_params = astar_params
         self.vehicle_params = vehicle_params
         self.start: Pose_t = planner_params["start"]
         self.goal: Pose_t = planner_params["goal"]
