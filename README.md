@@ -1,7 +1,9 @@
 # Automatic Parking
 
-This project implements an algorithm for automatic parking, 
+This project is for path-planning, 
 specifically designed for four-wheeled vehicles with front-wheel steering.
+A* and RRT* path-finding algorithms are implemented, 
+some modules are written in C++ to improve performance.
 
 ## Simulation Configuration
 
@@ -95,7 +97,7 @@ To use them with the python project, place them into `scripts/models/`.
 
 ## Demos
 
-### Path finding
+### A* Path finding
 
 <p float="left">
 <img src="resources/parking-lot-1.png" width=400>
@@ -110,6 +112,23 @@ To use them with the python project, place them into `scripts/models/`.
 <p float="left">
 <img src="resources/parking-lot-3.png" width=400>
 <img src="resources/parking-lot-3.gif" width=400>
+</p>
+
+### RRT* Path finding (Time Budget $200\ \mathrm{ms}$)
+
+<p float="left">
+<img src="resources/parking-lot-1-rrtstar.png" width=400>
+<img src="resources/parking-lot-1-rrtstar.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-2-rrtstar.png" width=400>
+<img src="resources/parking-lot-2-rrtstar.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-3-rrtstar.png" width=400>
+<img src="resources/parking-lot-3-rrtstar.gif" width=400>
 </p>
 
 ### Reeds-Shepp curve
