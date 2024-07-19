@@ -39,6 +39,12 @@ Feel free to add new configuration files or edit the existing one.
 
 ## Usage
 
+First clone the repository. Be sure to add `--recurse-submodules` to clone [pybind11](https://github.com/pybind11/pybind) submodule.
+
+```bash
+git clone --recurse-submodules https://github.com/solemnwind/automatic-parking
+```
+
 You can change the scene setup and configurations in `scripts/utils/test_parking_lot.toml`
 or create a new configuration file.
 
