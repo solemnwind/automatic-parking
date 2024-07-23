@@ -40,11 +40,11 @@ step_length = 0.2
 
 [rrtstar]
 step_length = 0.2
-time_budget = 2000  # ms
+time_budget = 1500  # ms
 neighboring_range = 2
 
 [result]
-save_png = false
-png_path = "../results/parking-lot.png"
-save_gif = false
-gif_path = "../results/parking-lot.gif"
+save_png = true
+png_path = "../results/parking-lot-4-rrtstar.png"
+save_gif = true
+gif_path = "../results/parking-lot-4-rrtstar.gif"

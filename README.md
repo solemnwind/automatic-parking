@@ -77,27 +77,29 @@ In the [plots](#reeds-shepp-curve), the blue paths indicate the car is moving fo
 
 ### Compile C++ Components
 
-All C++ modules are placed in `./src/`, 
+All C++ modules are placed in `src/`, 
 currently there are 2 C++ modules: `reeds_shepp_cpp` and `occupancy_map_cpp`.
-The compilations of them have the same steps, `occupancy_map_cpp` will be used as an example.
 
-First change directory into one of the C++ project directories.
+To compile them:
 ```bash
-cd ./src/occupancy_map_cpp
+cd ./src
 ```
-In the `CMakeLists.txt`, edit the line to specify your python executable to use.
-The python version should be the same as that you use to run `main.py`.
+In `CMakeLists.txt`, edit `PYTHON_EXECUTABLE` to specify your python executable to use.
+The python version should be the same as that you use to run `main.py`:
 ```cmake
 set (PYTHON_EXECUTABLE "path/to/your/python/executable")
 ```
-Make sure you have CMake installed and properly configured, and
-```bash
-mkdir build && cd build
-cmake ..
-make
-```
-The target file is `_occupancy_map.*.so` for Linux and macOS and `_occupancy_map.*.dll` for Windows. Upon successful compilation, the generated binary file will be copied to `scripts/models`.
+Make sure you have CMake installed and properly configured, and:
 
+```bash
+mkdir -p build && cd build
+cmake ..
+make -j2
+make install
+```
+
+Upon successful execution of all the commands above, 
+the two shared library binaries will be installed in `scripts/models/`.
 
 ## Demos
 
