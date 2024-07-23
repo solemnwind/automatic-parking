@@ -14,11 +14,9 @@ set (PYTHON_EXECUTABLE "/opt/miniconda3/envs/automatic-parking/bin/python")
 
 project(_reeds_shepp)
 
-add_subdirectory(pybind11)
 pybind11_add_module(_reeds_shepp reeds_shepp.h reeds_shepp.cpp)
 
-set(DEST_DIR ${CMAKE_SOURCE_DIR}/../../scripts/models)
+set(DEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/models)
 
-add_custom_command(TARGET _reeds_shepp POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:_reeds_shepp> ${DEST_DIR}
-)
+install(TARGETS _reeds_shepp
+	LIBRARY DESTINATION ${DEST_DIR})
