@@ -201,3 +201,5 @@ cmake-build-*
 
 # VSCode
 .vscode
+.vs
+CMakeSettings.json

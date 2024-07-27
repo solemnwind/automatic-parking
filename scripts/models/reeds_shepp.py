@@ -555,7 +555,7 @@ def CCSC(x: float, y: float, phi: float) -> tuple[ReedsSheppPath or None, float]
 def LpRnSnLnRp(x: float, y: float, phi: float) -> tuple[bool, float, float, float]:
     xi = x + sin(phi)
     eta = y - 1 - cos(phi)
-    rho, theta = polar(eta, xi)
+    rho, theta = polar(xi, eta)
     if rho >= 2:
         t = mod2pi(theta - arccos(-2 / rho))
         if t > 0:

@@ -194,7 +194,7 @@ bool LpRnSnLnRp(double x, double y, double phi, double &t, double &u, double &v)
     double xi, eta, rho, theta;
     xi = x + sin(phi);
     eta = y - 1. -cos(phi);
-    polar(eta, xi, rho, theta);
+    polar(xi, eta, rho, theta);
     if (rho >= 2) {
         t = mod2pi(theta - acos(-2. / rho));
         if (t > -EPS) {
