@@ -5,6 +5,56 @@ specifically designed for four-wheeled vehicles with front-wheel steering.
 A* and RRT* path-finding algorithms are implemented, 
 some modules are written in C++ to improve performance.
 
+## Demos
+
+### A* Path finding
+
+<p float="left">
+<img src="resources/parking-lot-1.png" width=400>
+<img src="resources/parking-lot-1.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-2.png" width=400>
+<img src="resources/parking-lot-2.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-3.png" width=400>
+<img src="resources/parking-lot-3.gif" width=400>
+</p>
+
+### RRT* Path finding (Time Budget $200\ \mathrm{ms}$)
+
+<p float="left">
+<img src="resources/parking-lot-1-rrtstar.png" width=400>
+<img src="resources/parking-lot-1-rrtstar.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-2-rrtstar.png" width=400>
+<img src="resources/parking-lot-2-rrtstar.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-3-rrtstar.png" width=400>
+<img src="resources/parking-lot-3-rrtstar.gif" width=400>
+</p>
+
+<p float="left">
+<img src="resources/parking-lot-4-rrtstar.png" width=400>
+<img src="resources/parking-lot-4-rrtstar.gif" width=400>
+</p>
+
+### Reeds-Shepp curve
+
+<p float="left">
+<img src="resources/reeds-shepp-1.png" width=400>
+<img src="resources/reeds-shepp-2.png" width=400>
+<img src="resources/reeds-shepp-3.png" width=400>
+<img src="resources/reeds-shepp-4.png" width=400>
+</p>
+
 ## Simulation Configuration
 
 ### Vehicle Model
@@ -100,53 +150,3 @@ make install
 
 Upon successful execution of all the commands above, 
 the two shared library binaries will be installed in `scripts/models/`.
-
-## Demos
-
-### A* Path finding
-
-<p float="left">
-<img src="resources/parking-lot-1.png" width=400>
-<img src="resources/parking-lot-1.gif" width=400>
-</p>
-
-<p float="left">
-<img src="resources/parking-lot-2.png" width=400>
-<img src="resources/parking-lot-2.gif" width=400>
-</p>
-
-<p float="left">
-<img src="resources/parking-lot-3.png" width=400>
-<img src="resources/parking-lot-3.gif" width=400>
-</p>
-
-### RRT* Path finding (Time Budget $200\ \mathrm{ms}$)
-
-<p float="left">
-<img src="resources/parking-lot-1-rrtstar.png" width=400>
-<img src="resources/parking-lot-1-rrtstar.gif" width=400>
-</p>
-
-<p float="left">
-<img src="resources/parking-lot-2-rrtstar.png" width=400>
-<img src="resources/parking-lot-2-rrtstar.gif" width=400>
-</p>
-
-<p float="left">
-<img src="resources/parking-lot-3-rrtstar.png" width=400>
-<img src="resources/parking-lot-3-rrtstar.gif" width=400>
-</p>
-
-<p float="left">
-<img src="resources/parking-lot-4-rrtstar.png" width=400>
-<img src="resources/parking-lot-4-rrtstar.gif" width=400>
-</p>
-
-### Reeds-Shepp curve
-
-<p float="left">
-<img src="resources/reeds-shepp-1.png" width=400>
-<img src="resources/reeds-shepp-2.png" width=400>
-<img src="resources/reeds-shepp-3.png" width=400>
-<img src="resources/reeds-shepp-4.png" width=400>
-</p>
